@@ -110,8 +110,4 @@ public class MapUtil {
     }
 
 
-    public static void main(String[] args) {
-
-
-    }
 }

@@ -304,11 +304,5 @@ public class StrFinder {
     }
 
 
-    public static void main(String[] args) {
-
-    }
-
-
-
 
 }

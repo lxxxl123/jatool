@@ -12,6 +12,10 @@
     <artifactId>jatool</artifactId>
     <version>1.0-SNAPSHOT</version>
 
+    <modules>
+        <module>jatool-common</module>
+    </modules>
+
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
         <maven.compiler.target>8</maven.compiler.target>
@@ -55,10 +59,6 @@
 
     </dependencyManagement>
 
-    <build>
-        <plugins>
-        </plugins>
-    </build>
 
     <distributionManagement>
         <repository>
@@ -66,6 +66,7 @@
             <name>GitHub OWNER Apache Maven Packages</name>
             <url>https://maven.pkg.github.com/lxxxl123/maven-repo</url>
         </repository>
+
     </distributionManagement>
 
 </project>

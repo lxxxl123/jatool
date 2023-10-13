@@ -97,11 +97,6 @@ public class CollUtils {
         return partitionedList;
     }
 
-    public static void main(String[] args) {
-        for (List<Integer> list : partitionList(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), 4)) {
-            list.add(1000);
-            System.out.println(list);
-        }
-    }
+
 
 }

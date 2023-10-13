@@ -23,12 +23,12 @@ public class SqlServerFinder extends StrFinder {
     }
 
 
-    public static void main(String[] args) {
-        System.out.println(of("seleCt 1 , (select 'from (' from dual) as [from]  from tableA")
-                .left("select")
-                .right("from")
-                .replaceWholeGroup("select count(*) from"));
-
-
-    }
+//    public static void main(String[] args) {
+//        System.out.println(of("seleCt 1 , (select 'from (' from dual) as [from]  from tableA")
+//                .left("select")
+//                .right("from")
+//                .replaceWholeGroup("select count(*) from"));
+//
+//
+//    }
 }

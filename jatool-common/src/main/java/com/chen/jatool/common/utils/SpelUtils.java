@@ -50,22 +50,22 @@ public class SpelUtils {
     }
 
 
-    public static void main(String[] args) {
-        HashMap<String, Object> map = new HashMap<>(2);
-        HashMap<Object, Object> map1 = new HashMap<>(2);
-        map1.put("b", null);
-        map.put("a", "abc");
-        map.put("map", map1);
-        System.out.println(SpelUtils.parseStr("#{['a']}", map));
-        System.out.println(SpelUtils.parseStr("#{'a'} 123", map));
-        System.out.println(SpelUtils.parseStr("#{T(StrUtil).upperFirst(a)}", map));
-        System.out.println(SpelUtils.parseStr("#{map?.get('b')?.get('c')}", map));
-
-//        SapUdRes sapUdRes = new SapUdRes();
-//        sapUdRes.setDate("2022-09-01");
-//        sapUdRes.setTime("19:22:35");
-//        System.out.println(SpelUtils.parse("#{udDate = T(DateUtil).combineSapDatetime(date,time)}",sapUdRes, Object.class));
-//        System.out.println(sapUdRes);
-    }
+//    public static void main(String[] args) {
+//        HashMap<String, Object> map = new HashMap<>(2);
+//        HashMap<Object, Object> map1 = new HashMap<>(2);
+//        map1.put("b", null);
+//        map.put("a", "abc");
+//        map.put("map", map1);
+//        System.out.println(SpelUtils.parseStr("#{['a']}", map));
+//        System.out.println(SpelUtils.parseStr("#{'a'} 123", map));
+//        System.out.println(SpelUtils.parseStr("#{T(StrUtil).upperFirst(a)}", map));
+//        System.out.println(SpelUtils.parseStr("#{map?.get('b')?.get('c')}", map));
+//
+////        SapUdRes sapUdRes = new SapUdRes();
+////        sapUdRes.setDate("2022-09-01");
+////        sapUdRes.setTime("19:22:35");
+////        System.out.println(SpelUtils.parse("#{udDate = T(DateUtil).combineSapDatetime(date,time)}",sapUdRes, Object.class));
+////        System.out.println(sapUdRes);
+//    }
 }
 
