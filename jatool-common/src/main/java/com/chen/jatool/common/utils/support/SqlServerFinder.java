@@ -1,4 +1,4 @@
-package com.chen.jatool.common.utils;
+package com.chen.jatool.common.utils.support;
 
 /**
  * @author chenwh3

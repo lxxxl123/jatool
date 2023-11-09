@@ -1,4 +1,4 @@
-package com.chen.jatool.common.modal.common.tree;
+package com.chen.jatool.common.utils.support.tree;
 
 import cn.hutool.core.convert.Convert;
 import lombok.AllArgsConstructor;

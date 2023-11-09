@@ -1,4 +1,4 @@
-package com.chen.jatool.common.modal.common.tree;
+package com.chen.jatool.common.utils.support.tree;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;

@@ -1,4 +1,4 @@
-package com.chen.jatool.common.utils;
+package com.chen.jatool.common.utils.support;
 
 
 import lombok.Data;

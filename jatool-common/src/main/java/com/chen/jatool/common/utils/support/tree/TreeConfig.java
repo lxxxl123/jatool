@@ -1,4 +1,4 @@
-package com.chen.jatool.common.modal.common.tree;
+package com.chen.jatool.common.utils.support.tree;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;

@@ -4,9 +4,9 @@ package com.chen.jatool.common.utils;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.convert.Convert;
-import com.chen.jatool.common.modal.common.tree.TreeBuilder;
-import com.chen.jatool.common.modal.common.tree.TreeConfig;
-import com.chen.jatool.common.modal.common.tree.TreeNode;
+import com.chen.jatool.common.utils.support.tree.TreeBuilder;
+import com.chen.jatool.common.utils.support.tree.TreeConfig;
+import com.chen.jatool.common.utils.support.tree.TreeNode;
 
 import java.util.ArrayList;
 import java.util.LinkedList;
