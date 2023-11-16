@@ -1,6 +1,7 @@
 package com.chen.jatool.common.exception;
 
 
+import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.modal.api.IResultCode;
 import com.chen.jatool.common.modal.api.ResultCode;
 import lombok.Getter;
@@ -9,7 +10,7 @@ import lombok.Getter;
 /**
  * 业务异常
  *
- * @author Chill
+ * @author chenwh3
  */
 public class ServiceException extends RuntimeException {
     private static final long serialVersionUID = 2359767895161832954L;
@@ -18,8 +19,12 @@ public class ServiceException extends RuntimeException {
     private final IResultCode resultCode;
 
     public ServiceException(String message) {
-        super(message);
+        super(StrUtil.format(message));
         this.resultCode = ResultCode.FAILURE;
+    }
+
+    public ServiceException(String message, Object... objects) {
+        this(StrUtil.format(message, objects));
     }
 
     public ServiceException(IResultCode resultCode) {
@@ -34,6 +39,8 @@ public class ServiceException extends RuntimeException {
 
     /**
      * 提高性能
+     *
+     * @return Throwable
      */
     @Override
     public Throwable fillInStackTrace() {
