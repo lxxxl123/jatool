@@ -129,6 +129,10 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return compareTo(of(o)) < 0;
     }
 
+    public boolean eq(Object o) {
+        return compareTo(of(o)) == 0;
+    }
+
     /**
      * @param maxScale 保留最多maxScale位小数（不包括0，所有多余的0不显示） ,
      */
@@ -156,7 +160,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
 
     @Override
     public boolean equals(Object obj) {
-        return getDecimal().equals(of(obj));
+        return obj instanceof Numbers && ((Numbers) obj).getDecimal().equals(getDecimal());
     }
 
     @Override
@@ -165,12 +169,14 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     }
 
     /**
-     * @param pattern 格式 格式中主要以 # 和 0 两种占位符号来指定数字长度。0 表示如果位数不足则以 0 填充，# 表示只要有可能就把数字拉上这个位置。<br>
+     * @param pattern 格式 格式中主要以 # 和 0 两种占位符号来指定数字长度。0 表示如果位数不足则以 0 填充，# 不会取整数开头的0和小数末尾的0 <br>
      *                <ul>
      *                <li>0 =》 取全部整数</li>
      *                <li>0.00 =》 取全部整数和两位小数，空则补0</li>
+     *                <li>0.0 => 3.0000 -> 3.0 ; 3 -> 3.0</li>
      *                <li>00.000 =》 取两位整数和三位小数，空则补0</li>
      *                <li># =》 取所有整数部分</li>
+     *                <li>#.# => 3.0000 -> 3</li>
      *                <li>#.##% =》 以百分比方式计数，并取两位小数</li>
      *                <li>#.#####E0 =》 显示为科学计数法，并取五位小数</li>
      *                <li>,### =》 每三位以逗号进行分隔，例如：299,792,458</li>
@@ -181,8 +187,5 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
      */
     public String format(String pattern) {
         return new DecimalFormat(pattern).format(decimal);
-    }
-
-    public static void main(String[] args) {
     }
 }

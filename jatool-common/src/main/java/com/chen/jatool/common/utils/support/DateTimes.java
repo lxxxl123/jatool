@@ -22,6 +22,9 @@ import java.util.function.Function;
  */
 public class DateTimes implements Comparable<DateTimes>, Cloneable {
 
+    /**
+     * note! calendar is a mutable obj
+     */
     @Getter
     private Calendar calendar;
 
@@ -47,8 +50,9 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         }
     }
 
-    private DateTimes(){
+    private DateTimes() {
     }
+
     private DateTimes(Calendar calendar) {
         this.calendar = calendar;
     }
@@ -84,12 +88,37 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return this;
     }
 
+    /**
+     * 2023-04-05 12:34:56 -> 2023-04-05 00:00:00
+     */
     public DateTimes truncateDate() {
         return truncate(Calendar.DATE);
     }
 
+    public DateTimes truncateHour() {
+        return truncate(Calendar.HOUR);
+    }
+
+    public DateTimes truncateMinute() {
+        return truncate(Calendar.MINUTE);
+    }
+
+    public DateTimes truncateSecond() {
+        return truncate(Calendar.SECOND);
+    }
+
+    /**
+     * 2023-04-05 12:34:56 -> 2023-04-01 00:00:00
+     */
     public DateTimes truncateMonth() {
         return truncate(Calendar.MONTH);
+    }
+
+    /**
+     * 2023-04-05 12:34:56 -> 2023-01-01 00:00:00
+     */
+    public DateTimes truncateYear() {
+        return truncate(Calendar.YEAR);
     }
 
     public String format(String pattern) {
@@ -139,6 +168,14 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return add(Calendar.YEAR, amount);
     }
 
+    public DateTimes addHour(int amount) {
+        return add(Calendar.HOUR, amount);
+    }
+
+    public DateTimes addMinutes(int amount) {
+        return add(Calendar.MINUTE, amount);
+    }
+
     public DateTimes addSeconds(int amount) {
         return add(Calendar.SECOND, amount);
     }
@@ -173,6 +210,10 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return setField(DateField.DAY_OF_MONTH, value);
     }
 
+    public DateTimes setMonth(int value){
+        return setField(DateField.MONTH, value);
+    }
+
     public DateTimes clone() {
         return of(this);
     }
@@ -185,8 +226,9 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return compareTo(dateTimes) <= 0;
     }
 
-    public boolean equals(DateTimes dateTimes) {
-        return getCalendar().equals(dateTimes.getCalendar());
+    @Override
+    public boolean equals(Object dateTimes) {
+        return dateTimes instanceof DateTimes && (((DateTimes) dateTimes).getCalendar()).equals(getCalendar());
     }
 
     public boolean after(DateTimes dateTimes) {
