@@ -70,6 +70,10 @@ public class CollUtils {
         return toColl(obj).stream().map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toList());
     }
 
+    public static Collection<String> toTrimStrColl(Object obj) {
+        return toColl(obj).stream().map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).map(String::trim).collect(Collectors.toList());
+    }
+
     public static Collection<Integer> toIntColl(Object obj) {
         return toColl(obj).stream().map(Convert::toInt).collect(Collectors.toList());
     }

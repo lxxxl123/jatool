@@ -2,8 +2,8 @@ package com.chen.jatool.common.utils.support;
 
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.NumberUtil;
-import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
+import com.chen.jatool.common.utils.ObjectUtil;
 import lombok.Getter;
 
 import java.math.BigDecimal;
@@ -26,8 +26,20 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     private Numbers() {
     }
 
+    public static Numbers of(Object o, Object orElse) {
+        try {
+            return of(o);
+        } catch (Exception e) {
+            if (ObjectUtil.isBlank(orElse)) {
+                return null;
+            } else {
+                return of(orElse);
+            }
+        }
+    }
+
     public static Numbers of(Object o) {
-        if (o == null || o instanceof String && StrUtil.isBlank((String) o)) {
+        if (ObjectUtil.isBlank(o)) {
             throw new ServiceException("Decimals can not be blank , o = {}", o);
         }
         if (o instanceof Numbers) {
@@ -52,7 +64,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
                 }
                 lastIdx--;
             }
-            decimal = NumberUtil.toBigDecimal(str);
+            decimal = Convert.convertWithCheck(BigDecimal.class, o, null, false);
         } else {
             decimal = Convert.toBigDecimal(o);
         }
@@ -64,10 +76,10 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     }
 
     public static Numbers ofNull(Object o) {
-        if (o == null || o instanceof String && StrUtil.isBlank((String) o)) {
+        if (ObjectUtil.isBlank(o)) {
             return new Numbers(BigDecimal.ZERO);
         }
-        return of(o);
+        return of(o, BigDecimal.ZERO);
     }
 
     @Override

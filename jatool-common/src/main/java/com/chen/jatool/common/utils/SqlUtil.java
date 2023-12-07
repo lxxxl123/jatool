@@ -44,6 +44,11 @@ public class SqlUtil {
             queryWrapper.eq(colName, val);
         }
     }
+    public static void tryLike(QueryWrapper<?> queryWrapper,String colName, Object val) {
+        if(ObjectUtil.isNotBlank(val)){
+            queryWrapper.like(colName, val);
+        }
+    }
 
     public static void tryBetweenOrEq(QueryWrapper<?> queryWrapper, String colName, String v1, String v2) {
         if (StrUtil.isBlank(v2)) {

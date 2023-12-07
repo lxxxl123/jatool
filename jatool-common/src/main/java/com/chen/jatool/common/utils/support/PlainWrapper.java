@@ -10,7 +10,10 @@ import com.chen.jatool.common.utils.CollUtils;
 import com.chen.jatool.common.utils.SqlUtil;
 import lombok.Getter;
 
-import java.util.*;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Date;
+import java.util.Map;
 
 /**
  * @author chenwh3
@@ -18,6 +21,13 @@ import java.util.*;
 public class PlainWrapper extends QueryWrapper<Object> {
 
     private final StringBuilder sqlSegment = new StringBuilder();
+
+    private boolean strict = false;
+
+    public PlainWrapper strictMode(boolean strict) {
+        this.strict = strict;
+        return this;
+    }
 
     @Getter
     private JSONObject entity;
@@ -32,6 +42,8 @@ public class PlainWrapper extends QueryWrapper<Object> {
 
         throw new ServiceException("PlainWrapper.of() 参数类型不支持 {}", o);
     }
+
+
 
     @Override
     public PlainWrapper setEntity(Object entity) {
@@ -60,13 +72,25 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return plainWrapper;
     }
 
+    private void validateVal(Object o) {
+        Collection<String> list = CollUtils.toStrColl(o);
+        for (String val : list) {
+            if (val.contains("'")) {
+                throw new ServiceException("dangerous sql! , params = {}", val);
+            }
+        }
+    }
 
     public void addSql(String str, Object... vals) {
         if (sqlSegment.length() != 0) {
             sqlSegment.append(" and ");
         }
         for (int i = 0; i < vals.length; i++) {
-            vals[i] = tryFormatVal(vals[i]);
+            Object val = tryFormatVal(vals[i]);
+            if (strict) {
+                validateVal(val);
+            }
+            vals[i] = val;
         }
         sqlSegment.append(StrUtil.format(str, vals));
     }
@@ -89,6 +113,11 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return this;
     }
 
+    public PlainWrapper like(String column, Object val) {
+        addSql("{} like '{}'", column, val);
+        return this;
+    }
+
 
 
 
@@ -99,6 +128,11 @@ public class PlainWrapper extends QueryWrapper<Object> {
 
     public PlainWrapper tryIn(String column, Object... vals){
         SqlUtil.tryIn(this, column, vals);
+        return this;
+    }
+
+    public PlainWrapper tryLike(String column, Object val){
+        SqlUtil.tryLike(this, column, val);
         return this;
     }
 
