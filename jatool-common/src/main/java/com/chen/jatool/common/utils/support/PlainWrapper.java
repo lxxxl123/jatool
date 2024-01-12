@@ -6,6 +6,8 @@ import cn.hutool.core.date.DateField;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.OrderItem;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.CollUtils;
 import com.chen.jatool.common.utils.SqlUtil;
@@ -14,6 +16,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 /**
  * @author chenwh3
@@ -21,27 +25,33 @@ import java.util.function.Consumer;
 public class PlainWrapper extends QueryWrapper<Object> {
 
     public static final String CONDITION = "condition";
+    public static final String OR = " or ";
+    public static final String AND = " and ";
     private final StringBuilder sqlSegment = new StringBuilder();
 
     @Getter
     private JSONObject entity;
 
-    public static PlainWrapper ofObj(Object o){
-        if(o instanceof PlainWrapper){
-            return (PlainWrapper) o;
-        }
-        if(o instanceof Map){
-            return of((Map<String, Object>) o);
-        }
+    private boolean strict = true;
 
-        throw new ServiceException("PlainWrapper.of() 参数类型不支持 {}", o);
+    public PlainWrapper strictMode(boolean strict) {
+        this.strict = strict;
+        return this;
     }
 
+    private void appendSqlSegment(String str) {
+        this.sqlSegment.append(str);
+    }
 
+    private void appendSqlSetmentAndCheck(String str) {
+        SqlUtil.checkSql(str);
+        this.sqlSegment.append(str);
+
+    }
 
     @Override
     public PlainWrapper setEntity(Object entity) {
-        if(entity instanceof Map){
+        if (entity instanceof Map) {
             this.entity = new JSONObject(entity);
         } else {
             throw new ServiceException("PlainWrapper.setEntity() 参数类型不支持 {}", entity);
@@ -49,7 +59,7 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return this;
     }
 
-    public PlainWrapper put(String key, Object val){
+    public PlainWrapper put(String key, Object val) {
         if (entity == null) {
             entity = new JSONObject();
         }
@@ -57,7 +67,19 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return this;
     }
 
-    public static PlainWrapper of(Map<String,Object> map){
+    public static PlainWrapper ofObj(Object o) {
+        if (o instanceof PlainWrapper) {
+            return (PlainWrapper) o;
+        }
+        if (o instanceof Map) {
+            return of((Map<String, Object>) o);
+        }
+        throw new ServiceException("PlainWrapper.of() 参数类型不支持 {}", o);
+    }
+
+
+
+    public static PlainWrapper of(Map<String, Object> map) {
         Object o = map.get(CONDITION);
         PlainWrapper wrapper = of(Convert.toStr(o, ""));
         wrapper.entity = new JSONObject(map);
@@ -70,64 +92,131 @@ public class PlainWrapper extends QueryWrapper<Object> {
 
     public static PlainWrapper of(String condition) {
         PlainWrapper plainWrapper = new PlainWrapper();
-        plainWrapper.sqlSegment.append(condition);
+        SqlUtil.checkSql(condition);
+        plainWrapper.appendSqlSegment(condition);
         return plainWrapper;
     }
 
+    public PlainWrapper and(Consumer<QueryWrapper<Object>> consumer) {
+        PlainWrapper wrapper = PlainWrapper.of();
+        consumer.accept(wrapper);
+        addSql("(" + wrapper.getSqlSegment() + ")");
+        return this;
+    }
+
+    public PlainWrapper or() {
+        appendSqlSegment(OR);
+        return this;
+    }
+
+
+    private interface ValWrapper {
+        default void validateVal(String val) {
+            // if val contains  continuous '' , it ok , but one ' then throw ex
+            int l = val.length();
+            for (int i = 0; i < l; i++) {
+                char c = val.charAt(i);
+                if (c == '\'') {
+                    if (i + 1 < l && val.charAt(i + 1) == '\'') {
+                        i++;
+                    } else {
+                        throw new ServiceException("illegal input, val = {}", val);
+                    }
+                }
+            }
+
+        }
+        String toString();
+    }
+
+    private class CollValWrapper implements ValWrapper {
+        private final Collection<?> coll;
+        public CollValWrapper(Object obj) { this.coll = CollUtils.toColl(obj); }
+
+        @Override
+        public String toString() {
+            String res = coll.stream()
+                    .map(e -> Convert.toStr(e, ""))
+                    .peek(e -> {
+                        if (strict) {
+                            validateVal(e);
+                        }
+                    })
+                    .collect(Collectors.joining("','"));
+            return "('" + res + "')";
+        }
+    }
+
+    private class StrValWrapper implements ValWrapper {
+        private final Object str;
+
+        public StrValWrapper(Object o) {
+            if (o instanceof Date || o instanceof Calendar || o instanceof DateTimes) {
+                o = DateTimes.of(o).formatDateTime();
+            }
+            this.str = o;
+        }
+
+        @Override
+        public String toString() {
+
+            String val = Convert.toStr(str, "");
+            if (strict) {
+                validateVal(val);
+            }
+            return "'" + val + "'";
+        }
+    }
+
+
+
 
     public void addSql(String str, Object... vals) {
-        if (sqlSegment.length() != 0) {
-            sqlSegment.append(" and ");
+        String sql = getSqlSegment();
+        if (StrUtil.isNotBlank(sql) && !sql.endsWith(OR) && !sql.endsWith(AND)) {
+            appendSqlSegment(AND);
         }
-        for (int i = 0; i < vals.length; i++) {
-            vals[i] = tryFormatVal(vals[i]);
-        }
-        sqlSegment.append(StrUtil.format(str, vals));
+        appendSqlSegment(StrUtil.format(str, vals));
     }
 
     @Override
+    public PlainWrapper between(String column, Object left, Object right) {
+        addSql("{} between {} and {}", column, new StrValWrapper(left), new StrValWrapper(right));
+        return this;
+    }
+    @Override
     public PlainWrapper eq(String column, Object val) {
-        addSql("{} = '{}'", column, val);
+        addSql("{} = {}", column, new StrValWrapper(val));
         return this;
     }
 
     @Override
     public PlainWrapper le(String column, Object val) {
-        addSql("{} <= '{}'", column, val);
+        addSql("{} <= {}", column, new StrValWrapper(val));
         return this;
     }
 
     @Override
     public PlainWrapper ge(String column, Object val) {
-        addSql("{} >= '{}'", column, val);
-        return this;
-    }
-
-
-
-
-    public PlainWrapper tryEq(String column, Object val){
-        SqlUtil.tryEq(this, column, Convert.toStr(val));
-        return this;
-    }
-
-    public PlainWrapper tryIn(String column, Object... vals){
-        SqlUtil.tryIn(this, column, vals);
-        return this;
-    }
-
-
-
-    @Override
-    public QueryWrapper<Object> apply(String applySql, Object... value) {
-        addSql(applySql, value);
+        addSql("{} >= {}", column, new StrValWrapper(val));
         return this;
     }
 
     @Override
-    public PlainWrapper in(String column, Object...vals) {
-        Collection<?> coll = CollUtils.toColl(vals);
-        addSql("{} in ('{}')", column, CollUtil.join(coll, "','"));
+    public PlainWrapper like(String column, Object val) {
+        addSql("{} like {}", column, new StrValWrapper(val));
+        return this;
+    }
+
+    @Override
+    public PlainWrapper likeRight(String column, Object val) {
+        addSql("{} like {}", column, new StrValWrapper(val + "%"));
+        return this;
+    }
+
+    @Override
+    public PlainWrapper in(String column, Object... vals) {
+        addSql("{} in {}", column, new CollValWrapper(vals));
         return this;
     }
 
@@ -136,14 +225,33 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return this.in(column, (Object) coll);
     }
 
-    public Object tryFormatVal(Object o){
-        if (o instanceof Date || o instanceof Calendar || o instanceof DateTimes) {
-            o = DateTimes.of(o).formatDateTime();
-        }
-        return o;
+
+    public PlainWrapper tryEq(String column, Object val) {
+        SqlUtil.tryEq(this, column, Convert.toStr(val));
+        return this;
     }
-    public PlainWrapper between(String column, Object left, Object right) {
-        addSql("{} between '{}' and '{}'", column, left, right);
+
+    public PlainWrapper tryIn(String column, Object... vals) {
+        SqlUtil.tryIn(this, column, vals);
+        return this;
+    }
+
+    public PlainWrapper tryLike(String column, Object val) {
+        SqlUtil.tryLike(this, column, val);
+        return this;
+    }
+
+
+    @Override
+    public QueryWrapper<Object> apply(String applySql, Object... value) {
+        appendSqlSetmentAndCheck(StrUtil.format(applySql, value));
+        return this;
+    }
+
+
+
+    public PlainWrapper tryBetween(String column, Object left, Object right) {
+        SqlUtil.tryBetween(this, column, left, right);
         return this;
     }
 
@@ -153,7 +261,7 @@ public class PlainWrapper extends QueryWrapper<Object> {
     }
 
     public void tryRange(String column, Object from, Object to, DateField dateField, int step, Consumer<PlainWrapper> consumer) {
-        if(StringUtils.isAnyBlank(Convert.toStr(from), Convert.toStr(to))){
+        if (StringUtils.isAnyBlank(Convert.toStr(from), Convert.toStr(to))) {
             consumer.accept(this);
         } else {
             DateTimes.of(from).loopRange(to, dateField, step, (f, t) -> {
@@ -172,23 +280,60 @@ public class PlainWrapper extends QueryWrapper<Object> {
     public String getSqlSegment() {
         return sqlSegment.toString();
     }
-    
-    public Map<String,Object> toMap(){
+
+    public Map<String, Object> toMap() {
         Map<String, Object> map = new HashMap<>(4);
         if (entity != null) {
             map.putAll(entity);
         }
-        map.put(CONDITION, sqlSegment.toString());
+        map.put(CONDITION, getSqlSegment());
         return map;
+    }
+
+    private static final Pattern PTN_ORDER_SPLIT = Pattern.compile("\\s*,\\s*(?=\\w\\.|\\w{2}|$)");
+
+    public Page<?> buildPage() {
+        if (this.entity == null) {
+            throw new ServiceException("please fulfill the page args");
+        }
+        String order = Convert.toStr(this.entity.getOrDefault("order", "")).trim();
+        Long pageSize = Convert.toLong(this.entity.getOrDefault("pageSize", 200L));
+        Long pageIndex = Convert.toLong(this.entity.getOrDefault("pageIndex", 1L));
+        Boolean searchCount = Convert.toBool(this.entity.getOrDefault("searchCount", false));
+
+        //分页参数设置
+        Page<?> page = new Page<>(pageIndex, pageSize, searchCount);
+        //处理排序
+        if (StringUtils.isNotBlank(order)) {
+            String[] orders = PTN_ORDER_SPLIT.split(order);
+            List<OrderItem> list = new ArrayList<>();
+            for (String column : orders) {
+                //不填或者带有asc结尾代表该列升序
+                int isDesc = StrUtil.indexOfIgnoreCase(column, " desc");
+                String param;
+                if (isDesc > 0) {
+                    param = column.substring(0, isDesc);
+                } else {
+                    int asc = StrUtil.indexOfIgnoreCase(column, " asc");
+                    if (asc != -1) {
+                        param = StrUtil.sub(column, 0, asc);
+                    } else {
+                        param = column;
+                    }
+                }
+                OrderItem orderItem = new OrderItem(param, isDesc < 0);
+                list.add(orderItem);
+            }
+            page.setOrders(list);
+        }
+        return page;
     }
 
     @Override
     public PlainWrapper clone() {
         PlainWrapper plainWrapper = new PlainWrapper();
-        plainWrapper.sqlSegment.append(this.sqlSegment.toString());
+        appendSqlSetmentAndCheck(getSqlSegment());
         plainWrapper.entity = new JSONObject(entity);
         return plainWrapper;
     }
-
-
 }
