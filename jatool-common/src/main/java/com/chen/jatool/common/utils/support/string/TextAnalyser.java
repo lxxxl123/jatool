@@ -7,6 +7,7 @@ import com.chen.jatool.common.exception.ServiceException;
 import lombok.Data;
 import lombok.Getter;
 
+import java.io.File;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
@@ -73,7 +74,7 @@ public class TextAnalyser {
             }
         }
 
-        public boolean anyMatch(String str) {
+        public boolean anyContains(String str) {
             return isExist() && resList.stream().anyMatch(e -> e.contains(str));
         }
 
@@ -154,6 +155,9 @@ public class TextAnalyser {
         }
 
         public TextAnalyser finish() {
+            if(!isValid()){
+                return TextAnalyser.this;
+            }
             list.add(obj);
             obj = null;
             index = Math.max(left, right);
@@ -161,8 +165,8 @@ public class TextAnalyser {
         }
 
         public TextResult putAsKey(String key) {
-            if (right == -1) {
-                return TextResult.this;
+            if(!isValid()){
+                return this;
             }
             obj.put(key, new StrRes(left, right));
             left = right;
@@ -179,8 +183,8 @@ public class TextAnalyser {
         }
 
         public TextResult putInKey(String key) {
-            if (right == -1) {
-                return TextResult.this;
+            if(!isValid()){
+                return this;
             }
             obj.putIfAbsent(key, new ArrayList<>());
             obj.computeIfPresent(key, (k, v) -> {
@@ -193,6 +197,9 @@ public class TextAnalyser {
         }
 
         public TextResult rightExpend(String str) {
+            if(!isValid()){
+                return this;
+            }
             int idx = text.indexOf(str, Integer.max(right, left));
             if (idx > 0) {
                 this.right = idx + str.length();
@@ -200,7 +207,14 @@ public class TextAnalyser {
             return this;
         }
 
+        public boolean isValid() {
+            return left != -1;
+        }
+
         public TextResult findRegex(String regex, int group) {
+            if(!isValid()){
+                return this;
+            }
             Pattern pattern = Pattern.compile(regex);
             Matcher matcher = pattern.matcher(text);
             if (matcher.find(Integer.max(right, left))) {
@@ -211,6 +225,9 @@ public class TextAnalyser {
         }
 
         public TextResult peek(Consumer<TextResult> consumer) {
+            if(!isValid()){
+                return this;
+            }
             consumer.accept(this);
             return this;
         }
@@ -235,16 +252,16 @@ public class TextAnalyser {
         return new TextResult(-1, -1);
     }
 
-    private PriorityQueue<ReplaceResult> replaceList = new PriorityQueue<>(Comparator.comparingInt(ReplaceResult::getRight));
+    private PriorityQueue<ReplaceResult> replaceList = new PriorityQueue<>(Comparator.comparingInt(ReplaceResult::getRight).reversed());
 
     public String finishWrite() {
         StringBuilder sb = new StringBuilder(text);
-        int idx = 0;
+        int idx = Integer.MAX_VALUE;
         while (!replaceList.isEmpty()) {
             ReplaceResult poll = replaceList.poll();
             int left = poll.getLeft();
             int right = poll.getRight();
-            if (left < idx) {
+            if (right > idx) {
                 throw new ServiceException("replace error , 不能重叠");
             }
             if (left != right) {
@@ -252,7 +269,7 @@ public class TextAnalyser {
             } else {
                 sb.insert(right, poll.getReplaceStr());
             }
-            idx = right;
+            idx = left;
         }
         return sb.toString();
     }
@@ -312,12 +329,12 @@ public class TextAnalyser {
         TextAnalyser analyser = TextAnalyser.of(s);
         for (String findStr : split) {
             analyser.find(findStr).rightExpend("\r\n").putAsKey("weaponMsg")
-                    .findRegex("\\v+(\\d+)\\v+", 1).putAsKey("triggerNum")
+                    .findRegex("\\v(\\d+)\\v", 1).putAsKey("triggerNum")
                     .peek(e -> {
                         Integer triggerNum = Convert.toInt(e.getStr("triggerNum"), 0);
                         if (triggerNum >= 0) {
                             for (Integer i = 0; i < triggerNum; i++) {
-                                e.findRegex("\\v+(.*\\v+)", 1).putInKey("triggers");
+                                e.findRegex("\\v+(.*\r\n)", 1).putInKey("triggers");
                             }
                         }
                     }).finish();
@@ -327,13 +344,16 @@ public class TextAnalyser {
             ListResWrapper triggers = resultWrapper.getResList("triggers");
             int triggerNum = Convert.toInt(triggerNumStr.toString(), -1);
 
-            if (triggers.anyMatch(REPLACEMENT)) {
+            if (!triggers.anyContains(REPLACEMENT) && triggers.isExist()) {
+//                continue;
                 triggerNumStr.replace(triggerNum + 1 + "");
-                triggers.getLast().append("\r\n" + REPLACEMENT);
-            } else {
+                triggers.getLast().append(REPLACEMENT + "\r\n");
+            } else if(!triggers.isExist()) {
                 triggerNumStr.replace("1\r\n" + REPLACEMENT);
             }
         }
-        System.out.println(analyser.finishWrite());
+//        System.out.println(analyser.finishWrite());
+        FileUtil.writeString(analyser.finishWrite(), new File("C:\\Users\\84999\\Desktop\\test\\item_kinds2.txt"), "utf-8");
+
     }
 }
