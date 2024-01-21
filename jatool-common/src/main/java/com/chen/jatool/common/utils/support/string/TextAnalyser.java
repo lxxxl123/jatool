@@ -3,13 +3,15 @@ package com.chen.jatool.common.utils.support.string;
 
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.io.FileUtil;
-import cn.hutool.core.lang.Tuple;
-import cn.hutool.core.text.StrBuilder;
+import com.chen.jatool.common.exception.ServiceException;
+import lombok.Data;
+import lombok.Getter;
 
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 
 public class TextAnalyser {
@@ -26,6 +28,99 @@ public class TextAnalyser {
 
     public static TextAnalyser of(String text) {
         return new TextAnalyser(text);
+    }
+
+    public class ResWrapper {
+
+        private StrRes res;
+
+        ResWrapper(StrRes res) {
+            this.res = res;
+        }
+
+        public boolean isExist() {
+            return res != null && res.left != -1 && res.right != -1;
+        }
+
+        public boolean contains(String str) {
+            return text.substring(res.left, res.right).contains(str);
+        }
+
+        public void append(String str) {
+            replaceList.add(new ReplaceResult(res.right, res.right, str));
+        }
+
+        public void replace(String str) {
+            replaceList.add(new ReplaceResult(res.left, res.right, str));
+        }
+
+        @Override
+        public String toString() {
+            return res.toString();
+        }
+    }
+
+    public class ListResWrapper {
+
+        @Getter
+        private List<ResWrapper> resList;
+
+        ListResWrapper(List<StrRes> res) {
+            if (res == null) {
+                resList = new ArrayList<>();
+            } else {
+                resList = res.stream().map(ResWrapper::new).collect(Collectors.toList());
+            }
+        }
+
+        public boolean anyMatch(String str) {
+            return isExist() && resList.stream().anyMatch(e -> e.contains(str));
+        }
+
+        public boolean isExist() {
+            return !resList.isEmpty();
+        }
+
+        public ResWrapper getLast() {
+            return resList.get(resList.size() - 1);
+        }
+    }
+
+    public List<ResultWrapper> getResultList() {
+        return list.stream().map(ResultWrapper::new).collect(Collectors.toList());
+    }
+
+    public class ResultWrapper {
+
+        private Map<String, Object> result;
+
+        public ResultWrapper(Map<String, Object> result) {
+            this.result = result;
+        }
+
+        public ResWrapper getRes(String key) {
+            return new ResWrapper((StrRes) result.get(key));
+        }
+
+        public ListResWrapper getResList(String key) {
+            return new ListResWrapper((List<StrRes>) result.get(key));
+        }
+    }
+
+    @Data
+    public class ReplaceResult {
+
+        private final int left;
+
+        private final int right;
+
+        private final String replaceStr;
+
+        public ReplaceResult(int left, int right, String replaceStr) {
+            this.left = left;
+            this.right = right;
+            this.replaceStr = replaceStr;
+        }
     }
 
     public class StrRes {
@@ -140,34 +235,24 @@ public class TextAnalyser {
         return new TextResult(-1, -1);
     }
 
-    private TreeMap<Integer, String> appendMap = new TreeMap<>(Comparator.reverseOrder());
+    private PriorityQueue<ReplaceResult> replaceList = new PriorityQueue<>(Comparator.comparingInt(ReplaceResult::getRight));
 
-    public TextAnalyser appendIfNotExist(String key, String str) {
-        for (Map<String, Object> map : list) {
-            Object o = map.get(key);
-            if (o instanceof StrRes) {
-                StrRes tr = (StrRes) o;
-                if (tr.toString().equals(str)) {
-                    return this;
-                }
-                appendMap.put(tr.right, str);
-            } else if (o instanceof List) {
-                List<StrRes> trs = (List<StrRes>) o;
-                for (StrRes tr : trs) {
-                    if (tr.toString().equals(str)) {
-                        return this;
-                    }
-                }
-                appendMap.put(trs.get(trs.size() - 1).right, str);
-            }
-        }
-        return this;
-    }
-
-    public String finishAppend(){
+    public String finishWrite() {
         StringBuilder sb = new StringBuilder(text);
-        for (Map.Entry<Integer, String> entry : appendMap.entrySet()) {
-            sb.insert(entry.getKey(), entry.getValue());
+        int idx = 0;
+        while (!replaceList.isEmpty()) {
+            ReplaceResult poll = replaceList.poll();
+            int left = poll.getLeft();
+            int right = poll.getRight();
+            if (left < idx) {
+                throw new ServiceException("replace error , 不能重叠");
+            }
+            if (left != right) {
+                sb.replace(left, right, poll.getReplaceStr());
+            } else {
+                sb.insert(right, poll.getReplaceStr());
+            }
+            idx = right;
         }
         return sb.toString();
     }
@@ -176,6 +261,8 @@ public class TextAnalyser {
     public String toString() {
         return list.toString();
     }
+
+    private static final String REPLACEMENT = "-51.000000  77 2071 1 1224979098644774912 4 0 2133 2 1224979098644774913 0 2133 2 1224979098644774915 0 1718 2 1224979098644774914 1224979098644774912 4 0 31 2 1224979098644774914 360287970189639680 2170 3 1224979098644774915 1369094286720630817 1224979098644774914 2123 3 1224979098644774913 1224979098644774915 3 2120 3 1224979098644774913 1224979098644774913 1 5 0 110 1 1224979098644774914 2170 3 1224979098644774915 1369094286720630817 1224979098644774914 2123 3 1224979098644774913 1224979098644774915 3 3 0 30 2 1224979098644774913 1 1726 2 1224979098644774914 1224979098644774912 1700 1 1224979098644774916 2133 2 1224979098644774919 288230376151711744 7 3 1224979098644774920 0 4 1804 3 1224979098644774921 1224979098644774912 1224979098644774920 4 0 31 2 1224979098644774921 1224979098644774914 1542 3 1224979098644774922 1224979098644774914 1224979098644774920 5 0 1073741857 3 1224979098644774921 288230376151711748 288230376151711749 1073741857 3 1224979098644774921 288230376151711779 288230376151711783 31 2 1224979098644774921 288230376151711944 4 0 2133 2 1224979098644774919 1224979098644774921 4 0 30 2 1224979098644774915 1 1825 3 1224979098644774928 1224979098644774912 1224979098644774920 2105 2 1224979098644774928 1 1776 3 1224979098644774912 1224979098644774921 1224979098644774928 3 0 3 0 3 0 31 2 1224979098644774921 1224979098644774914 3 0 4 0 31 2 1224979098644774919 288230376151711744 2133 2 1224979098644774919 288230376151711944 3 0 30 2 1224979098644774913 1 700 2 20 1 1506 2 1224979098644774929 1224979098644774914 2124 1 100 2133 2 1224979098644774931 4900 527 3 1224979098644774932 1224979098644774914 47 2107 2 1224979098644774932 38 2105 2 1224979098644774931 1224979098644774932 2170 3 1224979098644774915 1369094286720630817 1224979098644774914 2107 2 1224979098644774915 100 2105 2 1224979098644774931 1224979098644774915 2176 3 1224979098644774934 1224979098644774914 3 2107 2 1224979098644774934 10 2105 2 1224979098644774931 1224979098644774934 6 3 1224979098644774920 0 1224979098644774913 1709 2 3 1224979098644774912 700 2 2 1 718 2 2 3 2136 3 1224979098644774918 0 21 2121 3 1224979098644774918 10 1224979098644774918 720 2 2 1224979098644774918 2136 3 1224979098644774918 0 21 2121 3 1224979098644774918 10 1224979098644774918 722 2 2 1224979098644774918 2136 3 1224979098644774918 0 2 2121 3 1224979098644774918 1 1224979098644774918 725 2 2 1224979098644774918 2136 3 1224979098644774918 0 2 2121 3 1224979098644774918 1 1224979098644774918 723 2 2 1224979098644774918 1829 7 1224979098644774912 2 1224979098644774931 1224979098644774914 1224979098644774922 1224979098644774919 0 3 0 3 0 ";
 
     public static void main(String[] args) {
         String find = "itm_tutorial_short_bow\n" +
@@ -235,6 +322,18 @@ public class TextAnalyser {
                         }
                     }).finish();
         }
-        analyser.appendIfNotExist("triggers","-51.000000  77 2071 1 1224979098644774912 4 0 2133 2 1224979098644774913 0 2133 2 1224979098644774915 0 1718 2 1224979098644774914 1224979098644774912 4 0 31 2 1224979098644774914 360287970189639680 2170 3 1224979098644774915 1369094286720630817 1224979098644774914 2123 3 1224979098644774913 1224979098644774915 3 2120 3 1224979098644774913 1224979098644774913 1 5 0 110 1 1224979098644774914 2170 3 1224979098644774915 1369094286720630817 1224979098644774914 2123 3 1224979098644774913 1224979098644774915 3 3 0 30 2 1224979098644774913 1 1726 2 1224979098644774914 1224979098644774912 1700 1 1224979098644774916 2133 2 1224979098644774919 288230376151711744 7 3 1224979098644774920 0 4 1804 3 1224979098644774921 1224979098644774912 1224979098644774920 4 0 31 2 1224979098644774921 1224979098644774914 1542 3 1224979098644774922 1224979098644774914 1224979098644774920 5 0 1073741857 3 1224979098644774921 288230376151711748 288230376151711749 1073741857 3 1224979098644774921 288230376151711779 288230376151711783 31 2 1224979098644774921 288230376151711944 4 0 2133 2 1224979098644774919 1224979098644774921 4 0 30 2 1224979098644774915 1 1825 3 1224979098644774928 1224979098644774912 1224979098644774920 2105 2 1224979098644774928 1 1776 3 1224979098644774912 1224979098644774921 1224979098644774928 3 0 3 0 3 0 31 2 1224979098644774921 1224979098644774914 3 0 4 0 31 2 1224979098644774919 288230376151711744 2133 2 1224979098644774919 288230376151711944 3 0 30 2 1224979098644774913 1 700 2 20 1 1506 2 1224979098644774929 1224979098644774914 2124 1 100 2133 2 1224979098644774931 4900 527 3 1224979098644774932 1224979098644774914 47 2107 2 1224979098644774932 38 2105 2 1224979098644774931 1224979098644774932 2170 3 1224979098644774915 1369094286720630817 1224979098644774914 2107 2 1224979098644774915 100 2105 2 1224979098644774931 1224979098644774915 2176 3 1224979098644774934 1224979098644774914 3 2107 2 1224979098644774934 10 2105 2 1224979098644774931 1224979098644774934 6 3 1224979098644774920 0 1224979098644774913 1709 2 3 1224979098644774912 700 2 2 1 718 2 2 3 2136 3 1224979098644774918 0 21 2121 3 1224979098644774918 10 1224979098644774918 720 2 2 1224979098644774918 2136 3 1224979098644774918 0 21 2121 3 1224979098644774918 10 1224979098644774918 722 2 2 1224979098644774918 2136 3 1224979098644774918 0 2 2121 3 1224979098644774918 1 1224979098644774918 725 2 2 1224979098644774918 2136 3 1224979098644774918 0 2 2121 3 1224979098644774918 1 1224979098644774918 723 2 2 1224979098644774918 1829 7 1224979098644774912 2 1224979098644774931 1224979098644774914 1224979098644774922 1224979098644774919 0 3 0 3 0 \r\n");
+        for (ResultWrapper resultWrapper : analyser.getResultList()) {
+            ResWrapper triggerNumStr = resultWrapper.getRes("triggerNum");
+            ListResWrapper triggers = resultWrapper.getResList("triggers");
+            int triggerNum = Convert.toInt(triggerNumStr.toString(), -1);
+
+            if (triggers.anyMatch(REPLACEMENT)) {
+                triggerNumStr.replace(triggerNum + 1 + "");
+                triggers.getLast().append("\r\n" + REPLACEMENT);
+            } else {
+                triggerNumStr.replace("1\r\n" + REPLACEMENT);
+            }
+        }
+        System.out.println(analyser.finishWrite());
     }
 }
