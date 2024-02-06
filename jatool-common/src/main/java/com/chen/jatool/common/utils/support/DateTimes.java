@@ -1,22 +1,18 @@
 package com.chen.jatool.common.utils.support;
 
-
-import cn.hutool.core.date.CalendarUtil;
-import cn.hutool.core.date.DateField;
-import cn.hutool.core.date.DatePattern;
-import cn.hutool.core.date.DateUtil;
+import cn.hutool.core.convert.Convert;
+import cn.hutool.core.date.*;
 import cn.hutool.core.date.format.FastDateFormat;
 import com.chen.jatool.common.exception.ServiceException;
 import lombok.Getter;
 import org.apache.commons.lang3.time.DateUtils;
 
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.List;
+import java.time.temporal.TemporalAccessor;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 /**
  * @author chenwh3
@@ -28,8 +24,6 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
      */
     @Getter
     private Calendar calendar;
-
-    public static final FastDateFormat Y_MONTH__FORMAT = FastDateFormat.getInstance("yyyy-MM");
 
     public static DateTimes now() {
         return of(Calendar.getInstance());
@@ -65,19 +59,38 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return of(o);
     }
 
+    public static DateTimes ofNull(Object o, Object orElse) {
+        if (o == null || "".equals(o)) {
+            return ofNull(orElse);
+        }
+        return of(o);
+    }
+
+    public static DateTimes ofNull(Object o, Supplier<Object> orElse) {
+        if (o == null || "".equals(o)) {
+            return ofNull(orElse == null ? null : orElse.get());
+        }
+        return of(o);
+    }
+
     public static Date parse(Object obj) {
         try {
             if (obj instanceof Date) {
                 return (Date) obj;
             } else if (obj instanceof String) {
                 String dateStr = (String) obj;
-                if (dateStr.length() == 7) {
-                    return Y_MONTH__FORMAT.parse(dateStr);
+                if (dateStr.length() == 6) {
+                    return DatePattern.SIMPLE_MONTH_FORMAT.parse(dateStr);
+                } else if (dateStr.length() == 7) {
+                    return DatePattern.NORM_MONTH_FORMAT.parse(dateStr);
                 }
                 return DateUtil.parse(dateStr);
-            } else {
-                throw new ServiceException("incorrect date format. input parameter = [{}]", obj);
+            } else if (obj instanceof TemporalAccessor) {
+                return Date.from(TemporalAccessorUtil.toInstant((TemporalAccessor) obj));
+            } else if (obj instanceof Number) {
+                return new Date(((Number) obj).longValue());
             }
+            return Optional.of(Convert.toDate(obj)).orElseThrow(IllegalArgumentException::new);
         } catch (Exception e) {
             throw new ServiceException("incorrect date format. input parameter = [{}]", obj);
         }
@@ -130,8 +143,31 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return DatePattern.NORM_DATE_FORMAT.format(getCalendar());
     }
 
+    public String formatSimpleDate() {
+        return DatePattern.PURE_DATE_FORMAT.format(getCalendar());
+    }
+
+    public String formatMonth(){
+        return DatePattern.NORM_MONTH_FORMAT.format(getCalendar());
+    }
+
+
+    /**
+     * yyyyMM
+     */
+    public String formatSimpleMonth(){
+        return DatePattern.SIMPLE_MONTH_FORMAT.format(getCalendar());
+    }
+
     public String formatDateTime() {
         return DatePattern.NORM_DATETIME_FORMAT.format(getCalendar());
+    }
+
+    /**
+     * yyyyMMddHHmmss
+     */
+    public String formatSimpleDateTime() {
+        return DatePattern.PURE_DATETIME_FORMAT.format(getCalendar());
     }
 
     public String formatDateTimeMs() {
@@ -143,10 +179,16 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return this;
     }
 
+    /**
+     * 2023-04-05 12:34:56 -> 2023-04-30 23:59:59
+     */
     public DateTimes endOfMonth() {
         return endOf(Calendar.MONTH);
     }
 
+    /**
+     * 2023-04-05 12:34:56 -> 2023-04-05 23:59:59
+     */
     public DateTimes endOfDate() {
         return endOf(Calendar.DATE);
     }
@@ -277,11 +319,15 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
                 consumer.accept(left, to);
                 break;
             } else {
-                consumer.accept(left, right);
+                consumer.accept(left, right.clone().addMillis(-1));
             }
             left.add(dateField.getValue(), step);
             right.add(dateField.getValue(), step);
         }
+    }
+
+    public DateBetween between(Object to) {
+        return new DateBetween(this.getCalendar(), DateTimes.of(to).getCalendar());
     }
 
     public String toString() {

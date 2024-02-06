@@ -1,6 +1,6 @@
 package com.chen.jatool.common.utils;
 
-
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.convert.Convert;
@@ -8,13 +8,11 @@ import com.chen.jatool.common.utils.support.tree.TreeBuilder;
 import com.chen.jatool.common.utils.support.tree.TreeConfig;
 import com.chen.jatool.common.utils.support.tree.TreeNode;
 
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
-
+import java.util.stream.Stream;
 
 /**
  * @author chenwh3
@@ -124,4 +122,30 @@ public class TreeUtils {
         }
     }
 
+    public static <T> List<T> flatTree(List<Map> list, Class<T> clazz) {
+        List<T> res = new ArrayList<>();
+        for (Map<?, Object> map : list) {
+            res.addAll(flatTree(map, clazz));
+        }
+        return res;
+    }
+
+    public static <T> List<T> flatTree(Map map, Class<T> clazz) {
+        List<T> res = new ArrayList<>();
+        Collection<Object> values = map.values();
+        for (Object value : values) {
+            if (value instanceof List) {
+                res.addAll((List<T>) value);
+            } else if (value instanceof Stream) {
+                ((Stream<T>) value).forEach(res::add);
+            } else if (value instanceof Map) {
+                res.addAll(flatTree((Map) value, clazz));
+            } else if (clazz.isAssignableFrom(value.getClass())) {
+                res.add((T) value);
+            } else {
+                res.add(BeanUtil.toBean(value, clazz));
+            }
+        }
+        return res;
+    }
 }

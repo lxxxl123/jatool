@@ -8,8 +8,10 @@ import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.CollUtils;
+import com.chen.jatool.common.utils.ObjectUtil;
 import com.chen.jatool.common.utils.SqlUtil;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
@@ -78,7 +80,6 @@ public class PlainWrapper extends QueryWrapper<Object> {
     }
 
 
-
     public static PlainWrapper of(Map<String, Object> map) {
         Object o = map.get(CONDITION);
         PlainWrapper wrapper = of(Convert.toStr(o, ""));
@@ -100,7 +101,10 @@ public class PlainWrapper extends QueryWrapper<Object> {
     public PlainWrapper and(Consumer<QueryWrapper<Object>> consumer) {
         PlainWrapper wrapper = PlainWrapper.of();
         consumer.accept(wrapper);
-        addSql("(" + wrapper.getSqlSegment() + ")");
+        String sql = wrapper.getSqlSegment();
+        if (StrUtil.isNotBlank(sql)) {
+            addSql("(" + sql + ")");
+        }
         return this;
     }
 
@@ -149,6 +153,17 @@ public class PlainWrapper extends QueryWrapper<Object> {
 
     private class StrValWrapper implements ValWrapper {
         private final Object str;
+        private String prefix = "";
+        private String suffix = "";
+        private StrValWrapper setPrefix(String prefix) {
+            this.prefix = prefix;
+            return this;
+        }
+
+        private StrValWrapper setSuffix(String suffix) {
+            this.suffix = suffix;
+            return this;
+        }
 
         public StrValWrapper(Object o) {
             if (o instanceof Date || o instanceof Calendar || o instanceof DateTimes) {
@@ -157,6 +172,8 @@ public class PlainWrapper extends QueryWrapper<Object> {
             this.str = o;
         }
 
+
+
         @Override
         public String toString() {
 
@@ -164,19 +181,21 @@ public class PlainWrapper extends QueryWrapper<Object> {
             if (strict) {
                 validateVal(val);
             }
-            return "'" + val + "'";
+            return "'" + prefix + val + suffix + "'";
         }
+
     }
 
 
 
 
-    public void addSql(String str, Object... vals) {
+    public PlainWrapper addSql(String str, Object... vals) {
         String sql = getSqlSegment();
         if (StrUtil.isNotBlank(sql) && !sql.endsWith(OR) && !sql.endsWith(AND)) {
             appendSqlSegment(AND);
         }
         appendSqlSegment(StrUtil.format(str, vals));
+        return this;
     }
 
     @Override
@@ -187,6 +206,11 @@ public class PlainWrapper extends QueryWrapper<Object> {
     @Override
     public PlainWrapper eq(String column, Object val) {
         addSql("{} = {}", column, new StrValWrapper(val));
+        return this;
+    }
+
+    public PlainWrapper notEq(String column, Object val) {
+        addSql("{} != {}", column, new StrValWrapper(val));
         return this;
     }
 
@@ -208,9 +232,14 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return this;
     }
 
+    public PlainWrapper fuzzyLike(String column, Object val) {
+        addSql("{} like {}", column, new StrValWrapper(val).setPrefix("%").setSuffix("%"));
+        return this;
+    }
+
     @Override
     public PlainWrapper likeRight(String column, Object val) {
-        addSql("{} like {}", column, new StrValWrapper(val + "%"));
+        addSql("{} like {}", column, new StrValWrapper(val).setPrefix("%"));
         return this;
     }
 
@@ -238,6 +267,13 @@ public class PlainWrapper extends QueryWrapper<Object> {
 
     public PlainWrapper tryLike(String column, Object val) {
         SqlUtil.tryLike(this, column, val);
+        return this;
+    }
+
+    public PlainWrapper tryFuzzyLike(String column, Object val) {
+        if(ObjectUtil.isNotBlank(val)){
+            fuzzyLike(column, val);
+        }
         return this;
     }
 

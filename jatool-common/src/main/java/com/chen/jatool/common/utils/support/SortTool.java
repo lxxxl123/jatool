@@ -2,6 +2,8 @@ package com.chen.jatool.common.utils.support;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.convert.Convert;
+import cn.hutool.core.lang.func.Func1;
+import cn.hutool.core.lang.func.LambdaUtil;
 import com.chen.jatool.common.utils.ObjectUtil;
 import org.apache.commons.collections4.comparators.FixedOrderComparator;
 
@@ -20,7 +22,7 @@ public class SortTool<T> {
     public class ComparatorHolder {
         private final List<Comparator<Object>> comparators = new ArrayList<>();
 
-        private Comparator<Object> current;
+        private Comparator<Object> currentComparator;
 
         private String currentKey;
 
@@ -33,13 +35,13 @@ public class SortTool<T> {
 
 
         public void add(String key , Comparator comparator) {
-            build();
-            current = comparator;
+            buildLastComparator();
+            currentComparator = comparator;
             currentKey = key;
         }
 
         public ComparatorHolder desc(){
-            current = current.reversed();
+            currentComparator = currentComparator.reversed();
             return this;
         }
 
@@ -48,12 +50,12 @@ public class SortTool<T> {
         }
 
         public ComparatorHolder nullLast() {
-            current = Comparator.nullsLast(current);
+            currentComparator = Comparator.nullsLast(currentComparator);
             return this;
         }
 
         public ComparatorHolder nullFirst() {
-            current = Comparator.nullsFirst(current);
+            currentComparator = Comparator.nullsFirst(currentComparator);
             return this;
         }
 
@@ -69,24 +71,25 @@ public class SortTool<T> {
 
 
         public ComparatorHolder thenComparing(Comparator comparator) {
-            current.thenComparing(comparator);
+            currentComparator.thenComparing(comparator);
             return this;
         }
 
-        private void build(){
-            if (current != null) {
+        private void buildLastComparator(){
+            if (currentComparator != null) {
+                final Comparator<Object> lastComparator = currentComparator;
                 final String key = currentKey;
                 final Class<?> currentClass = sortClass;
                 final Object currentExVal = exVal;
                 Comparator<Object> comparing;
                 if (currentClass != null) {
                     if (Numbers.class.equals(currentClass)) {
-                        comparing = Comparator.comparing(e -> Numbers.of(ObjectUtil.get(e, key), currentExVal), current);
+                        comparing = Comparator.comparing(e -> Numbers.of(ObjectUtil.get(e, key), currentExVal), lastComparator);
                     } else {
-                        comparing = Comparator.comparing(e -> Convert.convert(currentClass, ObjectUtil.get(e, key), currentExVal), current);
+                        comparing = Comparator.comparing(e -> Convert.convert(currentClass, ObjectUtil.get(e, key), currentExVal), lastComparator);
                     }
                 } else {
-                    comparing = Comparator.comparing(e -> tryConvertComparable(ObjectUtil.get(e, key)), current);
+                    comparing = Comparator.comparing(e -> tryConvertComparable(ObjectUtil.get(e, key)), lastComparator);
                 }
                 comparators.add(comparing);
             }
@@ -95,7 +98,7 @@ public class SortTool<T> {
         }
 
         private Comparator<Object> getFinalComparator() {
-            build();
+            buildLastComparator();
             if(CollUtil.isEmpty(comparators)) {
                 return null;
             }
@@ -105,9 +108,13 @@ public class SortTool<T> {
         public ComparatorHolder sortByKey(String key) {
             return SortTool.this.sortByKey(key);
         }
-
         public ComparatorHolder sortByKey(String key, Comparator comparator) {
             return SortTool.this.sortByKey(key, comparator);
+        }
+
+
+        public ComparatorHolder sortByKey(Func1<T, ?> func1) {
+            return SortTool.this.sortByKey(func1);
         }
 
         public ComparatorHolder sortByKeyWithFixed(String key, List<String> order) {
@@ -142,6 +149,12 @@ public class SortTool<T> {
             return (Comparable) Convert.toStr(object);
         }
     }
+
+    public ComparatorHolder sortByKey(Func1<T, ?> func1) {
+        comparatorHolder.add(LambdaUtil.getFieldName(func1), Comparator.naturalOrder());
+        return comparatorHolder;
+    }
+
     public ComparatorHolder sortByKey(String key) {
         comparatorHolder.add(key, Comparator.naturalOrder());
         return comparatorHolder;

@@ -50,9 +50,9 @@ public class Maps {
     public List<String> getStrList(String key, String split) {
         Object o = map.get(key);
         if (o instanceof String) {
-            return (List) CollUtils.toTrimStrColl(((String) o).split(split));
+            return CollUtils.toTrimList(((String) o).split(split));
         }
-        return (List) CollUtils.toStrColl(o);
+        return CollUtils.toStrList(o);
     }
 
 

@@ -13,6 +13,7 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * @author chenwh3
@@ -35,47 +36,60 @@ public class CollUtils {
         if (coll == null) {
             return Collections.emptySet();
         }
+        if (coll instanceof Set) {
+            return (Set<T>) coll;
+        }
         return new HashSet<>(coll);
     }
 
     /**
      * 强转collection , obj 2 list<obj> , arr[] 2 list , list 2 list
      */
-    public static Collection<?> toColl(Object obj) {
+    public static Stream<?> toStream(Object obj) {
         if (obj == null) {
-            return Collections.emptyList();
+            return Stream.of();
         } else if (obj instanceof Stream) {
-            return (ArrayList<?>) ((Stream<?>) obj).collect(Collectors.toList());
+            return ((Stream<?>) obj);
         } else if (obj instanceof Collection) {
-            return (Collection<?>) obj;
+            return ((Collection<?>) obj).stream();
+        } else if (obj instanceof Iterable) {
+            return StreamSupport.stream(((Iterable<?>) obj).spliterator(), false);
         } else if (obj.getClass().isArray()) {
             int len = Array.getLength(obj);
             if (len == 1) {
                 Object o = Array.get(obj, 0);
                 if (o instanceof Collection || o instanceof Stream) {
-                    return toColl(o);
+                    return toStream(o);
                 }
             }
-            List<Object> list = new ArrayList<>(len);
-            for (int i = 0; i < len; i++) {
-                list.add(Array.get(obj, i));
-            }
-            return list;
+            return Stream.of((Object [])obj);
         } else {
-            return Collections.singletonList(obj);
+            return Stream.of(obj);
         }
     }
 
-    public static Collection<String> toStrColl(Object obj) {
-        return toColl(obj).stream().map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toList());
+    public static Collection<?> toColl(Object obj) {
+        return toStream(obj).collect(Collectors.toList());
     }
 
-    public static Collection<String> toTrimStrColl(Object obj) {
+    @Deprecated
+    public static Collection<String> toStrColl(Object obj) {
+        return toStrList(obj);
+    }
+    public static List<String> toStrList(Object obj) {
+        return toStream(obj).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toList());
+    }
+
+    public static List<String> toTrimList(Object obj) {
         return toColl(obj).stream().map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).map(String::trim).collect(Collectors.toList());
     }
 
+    public static List<String> toStrListFromArr(Object... obj){
+        return Arrays.stream(obj).flatMap(CollUtils::toStream).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toList());
+    }
+
     public static Collection<Integer> toIntColl(Object obj) {
-        return toColl(obj).stream().map(Convert::toInt).collect(Collectors.toList());
+        return toStream(obj).map(Convert::toInt).collect(Collectors.toList());
     }
 
 
@@ -127,10 +141,6 @@ public class CollUtils {
         return list.stream()
                 .map(e -> Convert.convert(clazz, ObjectUtil.get(e, key), null))
                 .min((a, b) -> a.compareTo(b)).get();
-    }
-
-
-    public static void main(String[] args) {
     }
 
 
