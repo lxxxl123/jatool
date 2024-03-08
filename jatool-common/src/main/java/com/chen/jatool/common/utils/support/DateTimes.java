@@ -19,6 +19,9 @@ import java.util.function.Supplier;
  */
 public class DateTimes implements Comparable<DateTimes>, Cloneable {
 
+    public static final FastDateFormat DOT_DATE_FORMAT = FastDateFormat.getInstance("yyyy.MM.dd");
+    public static final FastDateFormat DOT_DATETIME_FORMAT = FastDateFormat.getInstance("yyyy.MM.dd");
+
     /**
      * note! calendar is a mutable obj
      */
@@ -143,6 +146,9 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return DatePattern.NORM_DATE_FORMAT.format(getCalendar());
     }
 
+    /**
+     * yyyyMMdd
+     */
     public String formatSimpleDate() {
         return DatePattern.PURE_DATE_FORMAT.format(getCalendar());
     }
@@ -159,8 +165,25 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return DatePattern.SIMPLE_MONTH_FORMAT.format(getCalendar());
     }
 
+    /**
+     * yyyy-MM-dd HH:mm:ss
+     */
     public String formatDateTime() {
         return DatePattern.NORM_DATETIME_FORMAT.format(getCalendar());
+    }
+
+    /**
+     * yyyy.MM.dd
+     */
+    public String formatDotDate(){
+        return DOT_DATE_FORMAT.format(getCalendar());
+    }
+
+    /**
+     * yyyy.MM.dd HH:mm:ss
+     */
+    public String formatDotDateTime(){
+        return DOT_DATETIME_FORMAT.format(getCalendar());
     }
 
     /**

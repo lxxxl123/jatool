@@ -33,6 +33,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-tx</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
         </dependency>
@@ -56,6 +62,8 @@
             <version>${mybatis-plus.version}</version>
             <scope>provided</scope>
         </dependency>
+
+
 
     </dependencies>
 
