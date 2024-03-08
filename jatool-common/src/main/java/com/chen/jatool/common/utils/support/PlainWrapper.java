@@ -8,7 +8,6 @@ import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.CollUtils;
 import com.chen.jatool.common.utils.ObjectUtil;
@@ -239,7 +238,7 @@ public class PlainWrapper extends QueryWrapper<Object> {
 
     @Override
     public PlainWrapper likeRight(String column, Object val) {
-        addSql("{} like {}", column, new StrValWrapper(val).setPrefix("%"));
+        addSql("{} like {}", column, new StrValWrapper(val).setSuffix("%"));
         return this;
     }
 

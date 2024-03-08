@@ -5,9 +5,11 @@
 //import cn.hutool.core.util.StrUtil;
 //import com.baomidou.mybatisplus.core.metadata.OrderItem;
 //import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-//import com.chen.jatool.common.exception.ServiceException;
-//import com.chen.jatool.common.modal.vo.PageVo;
 //import com.chen.jatool.common.utils.support.string.SqlServerFinder;
+//import com.haday.qms.core.log.exception.ServiceException;
+//import com.haday.qms.core.tool.utils.JdbcTemplateUtils;
+//import com.haday.qms.core.tool.utils.SqlUtil;
+//import com.haday.qms.vo.PageVo;
 //import lombok.extern.slf4j.Slf4j;
 //import org.springframework.jdbc.core.BeanPropertyRowMapper;
 //
@@ -91,6 +93,15 @@
 //
 //    public PageVo<Map<String, Object>> getPage() {
 //        return (PageVo) getPage(Map.class);
+//    }
+//
+//    public List<Map<String,Object>> getList(){
+//        return (List)getList(Map.class);
+//    }
+//
+//    public <T> List<T> getList(Class<T> clazz){
+//        String sql = getSql(methodName);
+//        return executeSqlForList(sql, clazz);
 //    }
 //
 //    public <T> PageVo<T> getPage(Class<T> clazz) {

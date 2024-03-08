@@ -25,6 +25,10 @@ public class CollUtils {
         return t -> seen.add(keyExtractor.apply(t));
     }
 
+    public static boolean isAnyEmpty(Collection<?>... colls) {
+        return Arrays.stream(colls).anyMatch(CollUtil::isEmpty);
+    }
+
     @SafeVarargs
     public static <T> Predicate<T> distinctByKeys(Function<? super T, ?>... keyExtractors) {
         Set<Object> seen = ConcurrentHashMap.newKeySet();
