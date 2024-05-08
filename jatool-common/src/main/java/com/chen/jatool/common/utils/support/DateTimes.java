@@ -20,7 +20,7 @@ import java.util.function.Supplier;
 public class DateTimes implements Comparable<DateTimes>, Cloneable {
 
     public static final FastDateFormat DOT_DATE_FORMAT = FastDateFormat.getInstance("yyyy.MM.dd");
-    public static final FastDateFormat DOT_DATETIME_FORMAT = FastDateFormat.getInstance("yyyy.MM.dd");
+    public static final FastDateFormat DOT_DATETIME_FORMAT = FastDateFormat.getInstance("yyyy.MM.dd HH:mm:ss");
 
     /**
      * note! calendar is a mutable obj
@@ -60,6 +60,17 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
             return new DateTimes(Calendar.getInstance());
         }
         return of(o);
+    }
+
+    public static DateTimes ofEx(Object o){
+        if (o == null || "".equals(o)) {
+            return null;
+        }
+        try {
+            return of(o);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public static DateTimes ofNull(Object o, Object orElse) {
@@ -142,6 +153,9 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return FastDateFormat.getInstance(pattern).format(getCalendar());
     }
 
+    /**
+     * yyyy-MM-dd
+     */
     public String formatDate() {
         return DatePattern.NORM_DATE_FORMAT.format(getCalendar());
     }
@@ -184,6 +198,13 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
      */
     public String formatDotDateTime(){
         return DOT_DATETIME_FORMAT.format(getCalendar());
+    }
+
+    /**
+     * HH:mm:ss
+     */
+    public String formatTime() {
+        return DatePattern.NORM_TIME_FORMAT.format(getCalendar());
     }
 
     /**
@@ -268,10 +289,9 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return this;
     }
 
-    public int getDayOfMonth() {
-        return getField(DateField.DAY_OF_MONTH);
+    public DateTimes setHour(int value){
+        return setField(DateField.HOUR_OF_DAY, value);
     }
-
     public DateTimes setDayOfMonth(int value) {
         return setField(DateField.DAY_OF_MONTH, value);
     }
@@ -279,6 +299,16 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     public DateTimes setMonth(int value){
         return setField(DateField.MONTH, value);
     }
+
+    public int getDayOfMonth() {
+        return getField(DateField.DAY_OF_MONTH);
+    }
+
+    public int getYear(){
+        return getField(DateField.YEAR);
+    }
+
+
 
     public DateTimes clone() {
         return of(this);
@@ -329,6 +359,15 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     }
 
     public void loopRange(Object toObj, DateField dateField, int step, BiConsumer<DateTimes, DateTimes> consumer) {
+        loopRange(toObj, dateField, step, consumer, true);
+    }
+
+    /**
+     * @param closeRange 是否闭区间
+     *                     true: [from , to1) , [to1, to2) , [to2, to]
+     *                     false: [from, to1] , [to1, to2] , [to2, to]
+     */
+    public void loopRange(Object toObj, DateField dateField, int step, BiConsumer<DateTimes, DateTimes> consumer, boolean closeRange) {
         DateTimes from = clone();
         DateTimes to = DateTimes.of(toObj);
         if (step == 0) {
@@ -342,7 +381,11 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
                 consumer.accept(left, to);
                 break;
             } else {
-                consumer.accept(left, right.clone().addMillis(-1));
+                if (closeRange) {
+                    consumer.accept(left, right.clone().addMillis(-1));
+                } else {
+                    consumer.accept(left, right);
+                }
             }
             left.add(dateField.getValue(), step);
             right.add(dateField.getValue(), step);

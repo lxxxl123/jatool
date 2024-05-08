@@ -83,6 +83,9 @@ public class CollUtils {
     public static List<String> toStrList(Object obj) {
         return toStream(obj).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toList());
     }
+    public static Set<String> toStrSet(Object obj){
+        return toStream(obj).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toSet());
+    }
 
     public static List<String> toTrimList(Object obj) {
         return toColl(obj).stream().map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).map(String::trim).collect(Collectors.toList());

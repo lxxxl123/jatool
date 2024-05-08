@@ -59,4 +59,7 @@ public class Maps {
     public <K,V> Map<K,V> getMap(Class<K> kClass , Class<V> vClass){
         return (Map<K, V>) map;
     }
+    public Map<String,Object> getStrObjMap(){
+        return getMap(String.class, Object.class);
+    }
 }
