@@ -92,7 +92,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         } else if (o instanceof String) {
             String str = ((String) o).trim();
             int lastIdx = str.length() - 1;
-            while (lastIdx >= 0) {
+            while (lastIdx >= 1) {
                 char last = str.charAt(lastIdx);
                 if (last == '%') {
                     div = div.multiply(BigDecimal.valueOf(100));
@@ -103,12 +103,17 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
                 }
                 lastIdx--;
             }
+            str = str.substring(0, lastIdx + 1);
             if (StrUtil.containsIgnoreCase(str, "e")) {
                 try {
                     decimal = new BigDecimal(str);
                 } catch (Exception e) {
                     Convert.convertWithCheck(BigDecimal.class, o, null, false);
                 }
+            } else if (StrUtil.startWithAnyIgnoreCase(str, "0b")) {
+                decimal = new BigDecimal(Integer.parseInt(str.substring(2), 2));
+            } else if (StrUtil.startWithAnyIgnoreCase(str, "0o")) {
+                decimal = new BigDecimal(Integer.parseInt(str.substring(2), 8));
             } else {
                 decimal = Convert.convertWithCheck(BigDecimal.class, o, null, false);
             }
@@ -219,6 +224,16 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return this;
     }
 
+    public Numbers floor(int scale) {
+        decimal = decimal.setScale(scale, RoundingMode.FLOOR);
+        return this;
+    }
+
+    public Numbers ceiling(int scale) {
+        decimal = decimal.setScale(scale, RoundingMode.CEILING);
+        return this;
+    }
+
     public Double dbVal() {
         return decimal.doubleValue();
     }
@@ -257,5 +272,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     public String format(String pattern) {
         return new DecimalFormat(pattern).format(decimal);
     }
+
+
 
 }
