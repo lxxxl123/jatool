@@ -1,7 +1,9 @@
 package com.chen.jatool.common.utils.support;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.NumberUtil;
+import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.ObjectUtil;
 import lombok.Getter;
@@ -10,6 +12,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.List;
 
 /**
  * @author chenwh3
@@ -38,6 +41,42 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         }
     }
 
+
+    public static Numbers avg(List nums, int scale) {
+        if (CollUtil.isEmpty(nums)) {
+            return null;
+        }
+        Numbers res = of(0);
+        for (Object num : nums) {
+            res.add(num);
+        }
+        return res.divide(nums.size(), scale);
+    }
+
+    /**
+     * 计算标准偏差（又称为-样品标准差）
+     */
+    public static Numbers stdev(List nums){
+        return stdev(nums, 16);
+    }
+
+    /**
+     * 最大精度应该为15位左右 , 再大可能精度丢失 ， 由sqrt决定 ， 除非自行实现sqrt
+     * @param scale 计算过程的精度，并非结果精度
+     */
+    public static Numbers stdev(List nums, int scale) {
+        if (CollUtil.isEmpty(nums)) {
+            return null;
+        }
+        Numbers avg = avg(nums, scale);
+        Numbers res = of(0);
+        for (Object num : nums) {
+            res.add(Numbers.of(num).subtract(avg).pow(2));
+        }
+        return res.divide(nums.size() - 1, scale).sqrt();
+    }
+
+
     public static Numbers of(Object o) {
         if (ObjectUtil.isBlank(o)) {
             throw new ServiceException("Decimals can not be blank , o = {}", o);
@@ -53,7 +92,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         } else if (o instanceof String) {
             String str = ((String) o).trim();
             int lastIdx = str.length() - 1;
-            while (lastIdx >= 0){
+            while (lastIdx >= 0) {
                 char last = str.charAt(lastIdx);
                 if (last == '%') {
                     div = div.multiply(BigDecimal.valueOf(100));
@@ -64,7 +103,15 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
                 }
                 lastIdx--;
             }
-            decimal = Convert.convertWithCheck(BigDecimal.class, o, null, false);
+            if (StrUtil.containsIgnoreCase(str, "e")) {
+                try {
+                    decimal = new BigDecimal(str);
+                } catch (Exception e) {
+                    Convert.convertWithCheck(BigDecimal.class, o, null, false);
+                }
+            } else {
+                decimal = Convert.convertWithCheck(BigDecimal.class, o, null, false);
+            }
         } else {
             decimal = Convert.toBigDecimal(o);
         }
@@ -83,7 +130,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     }
 
     @Override
-    protected Numbers clone() {
+    public Numbers clone() {
         return of(getDecimal());
     }
 
@@ -112,6 +159,16 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
 
     public Numbers divide(Object o) {
         decimal = getDecimal().divide(of(o).getDecimal());
+        return this;
+    }
+
+    public Numbers pow(int pow) {
+        decimal = getDecimal().pow(pow);
+        return this;
+    }
+
+    public Numbers sqrt() {
+        decimal = BigDecimal.valueOf(Math.sqrt(dbVal()));
         return this;
     }
 
@@ -200,4 +257,5 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     public String format(String pattern) {
         return new DecimalFormat(pattern).format(decimal);
     }
+
 }
