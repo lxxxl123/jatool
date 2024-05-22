@@ -1,5 +1,6 @@
 package com.chen.jatool.common.utils.support;
 
+import cn.hutool.core.convert.Convert;
 import cn.hutool.core.exceptions.ExceptionUtil;
 import cn.hutool.core.lang.func.Func1;
 import cn.hutool.core.lang.func.LambdaUtil;
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 /**
  * @author chenwh3
@@ -38,17 +40,40 @@ public class Validators<T> {
     }
 
     private boolean ifBlank(Object obj) {
-       if (ObjectUtil.isBlank(obj)) {
+        if (ObjectUtil.isBlank(obj)) {
             return true;
         }
         return false;
     }
 
+    public Validators<T> checkIfBlank(String key, String msg) {
+        try {
+            Object val = ObjectUtil.get(obj, key);
+            if (ifBlank(val)) {
+                mb.appendln(msg);
+            }
+        } catch (Exception e) {
+            dealError(e);
+        }
+        return this;
+    }
 
     public Validators<T> checkIfBlank(Func1<T, Object> func, String msg) {
         try {
             Object call = func.call(obj);
             if (ifBlank(call)) {
+                mb.appendln(msg);
+            }
+        } catch (Exception e) {
+            dealError(e);
+        }
+        return this;
+    }
+
+    public Validators<T> checkMatchRegex(Func1<T, Object> func, String regex, String msg) {
+        try {
+            Object call = func.call(obj);
+            if (!Pattern.matches(regex, Convert.toStr(call, ""))) {
                 mb.appendln(msg);
             }
         } catch (Exception e) {
