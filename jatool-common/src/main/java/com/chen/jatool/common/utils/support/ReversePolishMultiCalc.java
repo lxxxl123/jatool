@@ -169,6 +169,7 @@ public class ReversePolishMultiCalc {
     public static void main(String[] args) {
         //String math = "9+(3-1)*3+10/2";
         String math = "12.8 + (2 - 3)*4+10/5.0";
+        ReversePolishMultiCalc calc = new ReversePolishMultiCalc();
         System.out.println(new ReversePolishMultiCalc().doCalc(doMatch(math)));
     }
 }

@@ -1,17 +1,21 @@
 package com.chen.jatool.common.utils.support.string;
 
+
+import com.chen.jatool.common.utils.support.string.strfinder.StrPairFinder;
+
+
 /**
  * @author chenwh3
  */
-public class SqlServerFinder extends StrFinder {
+public class SqlServerPairFinder extends StrPairFinder {
 
 
-    public SqlServerFinder(String s) {
+    public SqlServerPairFinder(String s) {
         super(s);
     }
 
-    public static StrFinder of(String s) {
-        return new SqlServerFinder(s);
+    public static StrPairFinder of(String s) {
+        return new SqlServerPairFinder(s);
     }
 
     {
