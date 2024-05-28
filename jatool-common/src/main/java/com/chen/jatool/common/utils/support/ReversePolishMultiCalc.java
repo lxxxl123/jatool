@@ -1,8 +1,10 @@
 package com.chen.jatool.common.utils.support;
 
+import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.ObjectUtil;
 
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -77,57 +79,64 @@ public class ReversePolishMultiCalc {
             throw new IllegalArgumentException(s);
         }
 
-        Stack<String> stack = new Stack<>();
-        List<String> data = new ArrayList<>();
+        Stack<String> symbolStack = new Stack<>();
+        List<String> numStack = new ArrayList<>();
 
         s = replaceAllBlank(s);
 
-        String each;
-        int start = 0;
+        int pointer = 0;
+        Matcher matcher = PTN_SYMBOL.matcher(s);
+        while (matcher.find()) {
+            String symbol = matcher.group();
+            if (LEFT.equals(symbol) ) {
+                symbolStack.push(symbol);
+                pointer = matcher.end();
+            } else if (RIGHT.equals(symbol)) {
+                String pop = "";
+                String num = s.substring(pointer, matcher.start());
+                numStack.add(num);
+                pointer = matcher.end();
 
-        for (int i = 0; i < s.length(); i++) {
-            String ele = s.charAt(i) + "";
-            if (isSymbol(ele)) {
-                each = s.charAt(i) + "";
-                //栈为空，(操作符，或者 操作符优先级大于栈顶优先级 && 操作符优先级不是( )的优先级 及是 ) 不能直接入栈
-                if (stack.isEmpty() || LEFT.equals(each)
-                        || ((calcLevel(each) > calcLevel(stack.peek())) && calcLevel(each) < LEVEL_HIGH)) {
-                    stack.push(each);
-                } else if (!stack.isEmpty() && calcLevel(each) <= calcLevel(stack.peek())) {
-                    //栈非空，操作符优先级小于等于栈顶优先级时出栈入列，直到栈为空，或者遇到了(，最后操作符入栈
-                    while (!stack.isEmpty() && calcLevel(each) <= calcLevel(stack.peek())) {
-                        if (calcLevel(stack.peek()) == LEVEL_HIGH) {
-                            break;
-                        }
-                        data.add(stack.pop());
+                while (!symbolStack.isEmpty()) {
+                    pop = symbolStack.pop();
+                    if (Objects.equals(pop, LEFT)) {
+                        break;
                     }
-                    stack.push(each);
-                } else if (RIGHT.equals(each)) {
-                    // ) 操作符，依次出栈入列直到空栈或者遇到了第一个)操作符，此时)出栈
-                    while (!stack.isEmpty()) {
-                        String pop = stack.pop();
-                        if (Objects.equals(pop, LEFT)) {
-                            break;
-                        }
-                        data.add(pop);
+                    numStack.add(pop);
+                }
+                if (!pop.equals(LEFT)) {
+                    throw new ServiceException("bracket not match");
+                }
+
+            } else {
+                int numEnd = matcher.start();
+                if (numEnd == 0) {
+                    throw new ServiceException("symbol err");
+                }
+                if (pointer != numEnd) {
+                    String num = s.substring(pointer, numEnd);
+                    numStack.add(num);
+                }
+                pointer = matcher.end();
+                int currentLevel = calcLevel(symbol);
+                if (symbolStack.isEmpty() || calcLevel(symbolStack.peek()) < currentLevel || calcLevel(symbolStack.peek()) == LEVEL_HIGH) {
+                    symbolStack.add(symbol);
+                } else {
+                    while (!symbolStack.isEmpty() && calcLevel(symbolStack.peek()) >= currentLevel) {
+                        numStack.add(symbolStack.pop());
                     }
+                    symbolStack.add(symbol);
                 }
-                start = i;    //前一个运算符的位置
-            } else if (i == s.length() - 1 || isSymbol(s.charAt(i + 1) + "")) {
-                each = start == 0 ? s.substring(start, i + 1) : s.substring(start + 1, i + 1);
-                if (isNumber(each)) {
-                    data.add(each);
-                    continue;
-                }
-                throw new RuntimeException("data not match number");
+
+
             }
         }
-        //如果栈里还有元素，此时元素需要依次出栈入列，可以想象栈里剩下栈顶为/，栈底为+，应该依次出栈入列，可以直接翻转整个stack 添加到队列
-        Collections.reverse(stack);
-        data.addAll(new ArrayList<>(stack));
+        numStack.add(s.substring(pointer));
+        while (!symbolStack.isEmpty()) {
+            numStack.add(symbolStack.pop());
+        }
 
-        System.out.println(data);
-        return data;
+        return numStack;
     }
 
     /**
@@ -166,10 +175,14 @@ public class ReversePolishMultiCalc {
         }
     }
 
+    /**
+     * [12.8, 2, 3, -, 4, *, +, 10, 5.0, /, +]
+     */
     public static void main(String[] args) {
         //String math = "9+(3-1)*3+10/2";
         String math = "12.8 + (2 - 3)*4+10/5.0";
         ReversePolishMultiCalc calc = new ReversePolishMultiCalc();
-        System.out.println(new ReversePolishMultiCalc().doCalc(doMatch(math)));
+        System.out.println(calc.doMatch(math));
+
     }
 }
