@@ -3,6 +3,8 @@ package com.chen.jatool.common.utils.support;
 import cn.hutool.json.JSONObject;
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.ObjectUtil;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
 import java.util.regex.Matcher;
@@ -10,29 +12,38 @@ import java.util.regex.Pattern;
 
 /**
  * 中缀表达式转后缀表达式
- * 后缀表达式计算
+ * 然后使用后缀表达式计算
+ * @author chenwh3
  */
-public class Calculcations {
+@Slf4j
+public class Formulas {
 
+    @Getter
     private List<String> suffixExpression;
 
-    private Calculcations() {
+    private Formulas() {
     }
 
-    public static Calculcations of(String infixExpression) {
-        Calculcations cal = new Calculcations();
+    public static Formulas of(String infixExpression) {
+        Formulas cal = new Formulas();
         cal.suffixExpression = parseSuffix(infixExpression);
         return cal;
     }
 
-    public Numbers calculate(Map<String, Object> argsMap) {
+    /**
+     * 输入参数进行计算
+     */
+    public Numbers cals(Map<String, Object> argsMap) {
         return doCalc(this.suffixExpression, argsMap);
     }
 
     /**
-     * 匹配 + - * / ( ) 运算符
+     * 匹配 + - * / ( ) 运算符 ，跳过负数
      */
-    public static final Pattern PTN_SYMBOL = Pattern.compile("[-+*/()（）]");
+    public static final Pattern PTN_SYMBOL = Pattern.compile("(?<!^|[-+*/(（])-|[+*/()（）]");
+    public static final Pattern PTN_CALCULATE_SYMBOL = Pattern.compile("[-+*/]");
+
+    public static final Pattern PTN_NEGATIVE = Pattern.compile("-(?=[(（])");
 
     static final String RIGHT = ")";
 
@@ -43,7 +54,7 @@ public class Calculcations {
 
     private Integer divScale = 4;
 
-    public Calculcations setDivScale(Integer divScale) {
+    public Formulas setDivScale(Integer divScale) {
         this.divScale = divScale;
         return this;
     }
@@ -109,6 +120,8 @@ public class Calculcations {
         List<String> numStack = new ArrayList<>();
 
         s = replaceAllBlank(s);
+        s = PTN_NEGATIVE.matcher(s).replaceAll("-1*");
+        System.out.println(s);
 
         int pointer = 0;
         Matcher matcher = PTN_SYMBOL.matcher(s);
@@ -117,23 +130,17 @@ public class Calculcations {
             if (checkIsLeft(symbol)) {
                 symbolStack.add(symbol);
             } else if (checkIsRight(symbol)) {
-                String pop = "";
                 numStack.add(s.substring(pointer, matcher.start()));
-
-                while (!symbolStack.isEmpty()) {
-                    pop = symbolStack.pollLast();
-                    if (checkIsLeft(pop)) {
-                        break;
+                String pop;
+                while (!checkIsLeft(pop = symbolStack.pollLast())) {
+                    if (pop == null) {
+                        throw new ServiceException("bracket not match");
                     }
                     numStack.add(pop);
                 }
-                if (!checkIsLeft(pop)) {
-                    throw new ServiceException("bracket not match");
-                }
-
             } else {
                 int numEnd = matcher.start();
-                if (numEnd == 0) {
+                if (numEnd == 0 && !symbol.equals(MINUS)) {
                     throw new ServiceException("symbol err , first symbol wrong");
                 }
                 if (pointer != numEnd) {
@@ -152,7 +159,9 @@ public class Calculcations {
             }
             pointer = matcher.end();
         }
-        numStack.add(s.substring(pointer));
+        if (pointer != s.length()) {
+            numStack.add(s.substring(pointer));
+        }
         while (!symbolStack.isEmpty()) {
             numStack.add(symbolStack.pollLast());
         }
@@ -165,13 +174,18 @@ public class Calculcations {
     public Numbers doCalc(List<String> list, Map<String, Object> symbolMap) {
         ArrayDeque<Object> numDeque = new ArrayDeque<>();
         for (String ele : list) {
-            if (isSymbol(ele)) {
+            if (PTN_CALCULATE_SYMBOL.matcher(ele).matches()) {
                 Object num1 = numDeque.pollLast();
                 Object num2 = numDeque.pollLast();
                 Numbers res = doTheMath(num2, num1, ele);
                 numDeque.addLast(res);
             } else {
-                numDeque.addLast(symbolMap.getOrDefault(ele, ele));
+                if (ele.startsWith(MINUS)) {
+                    ele = ele.substring(1);
+                    numDeque.addLast(MINUS + symbolMap.getOrDefault(ele, ele));
+                } else {
+                    numDeque.addLast(symbolMap.getOrDefault(ele, ele));
+                }
             }
         }
         return Numbers.of(numDeque.pop());
@@ -181,36 +195,42 @@ public class Calculcations {
      * 运算
      */
     public Numbers doTheMath(Object s1, Object s2, String symbol) {
-        switch (symbol) {
-            case ADD:
-                return Numbers.of(s1).add(s2);
-            case MINUS:
-                return Numbers.of(s1).subtract(s2);
-            case MUL:
-                return Numbers.of(s1).multiply(s2);
-            case DIV:
-                return Numbers.of(s1).divide(s2, divScale);
-            default:
-                throw new IllegalArgumentException(symbol);
+        try {
+            switch (symbol) {
+                case ADD:
+                    return Numbers.of(s1).add(s2);
+                case MINUS:
+                    return Numbers.of(s1).subtract(s2);
+                case MUL:
+                    return Numbers.of(s1).multiply(s2);
+                case DIV:
+                    return Numbers.of(s1).divide(s2, divScale);
+                default:
+                    throw new IllegalArgumentException(symbol);
+            }
+        } catch (Exception e) {
+            log.error("{}", e.getLocalizedMessage());
+            throw new ServiceException("发现无法解析参数 [{} {} {}]", s1, symbol, s2);
         }
     }
 
     /**
-     * [12.8, 2, 3, -, 4, *, +, 10, 5.0, /, +]
+     * 测试
      */
     public static void main(String[] args) {
         //String math = "9+(3-1)*3+10/2";
-//        String math = "12.8 + (2 - 3)*4+10/5.0";
-        String math = "（氯化钠+无盐固形物-灰分*密度）*计量量*17/密度/100 ";
-        Calculcations cal = Calculcations.of(math).setDivScale(6);
+//        String math = "12.8 + (2 - 3)*4+10/5.0"; // 后缀表达式为[12.8, 2, 3, -, 4, *, +, 10, 5.0, /, +]
+        String math = "（氯化钠+无盐固形物-灰分*密度）*计量量/密度/100 ";
+        Formulas formulas = Formulas.of(math).setDivScale(6);
+        System.out.println(formulas.getSuffixExpression());
 
-        System.out.println(cal.calculate(new JSONObject()
+        System.out.println(formulas.cals(new JSONObject()
                 .set("氯化钠", 1)
                 .set("无盐固形物", 2)
                 .set("灰分", 3)
                 .set("密度", 4)
-                .set("计量量", 5)
+                .set("计量量", 10)
         ));
-
     }
 }
+
