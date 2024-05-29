@@ -1,5 +1,6 @@
 package com.chen.jatool.common.utils.support;
 
+import cn.hutool.json.JSONObject;
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.ObjectUtil;
 
@@ -11,18 +12,41 @@ import java.util.regex.Pattern;
  * 中缀表达式转后缀表达式
  * 后缀表达式计算
  */
-public class ReversePolishMultiCalc {
+public class Calculcations {
 
-    public static final Pattern PTN_NUM = Pattern.compile("[-+]?[.\\d]{1,}");
+    private List<String> suffixExpression;
+
+    private Calculcations() {
+    }
+
+    public static Calculcations of(String infixExpression) {
+        Calculcations cal = new Calculcations();
+        cal.suffixExpression = parseSuffix(infixExpression);
+        return cal;
+    }
+
+    public Numbers calculate(Map<String, Object> argsMap) {
+        return doCalc(this.suffixExpression, argsMap);
+    }
+
     /**
      * 匹配 + - * / ( ) 运算符
      */
-    public static final Pattern PTN_SYMBOL = Pattern.compile("[-+*/()]");
+    public static final Pattern PTN_SYMBOL = Pattern.compile("[-+*/()（）]");
 
     static final String RIGHT = ")";
+
+    static final String RIGHT_CH = "）";
     public static final String LEFT = "(";
+    public static final String LEFT_CH = "（";
+
 
     private Integer divScale = 4;
+
+    public Calculcations setDivScale(Integer divScale) {
+        this.divScale = divScale;
+        return this;
+    }
     /**
      * 加減 + -
      */
@@ -45,12 +69,6 @@ public class ReversePolishMultiCalc {
         return s.replaceAll("\\s+", "");
     }
 
-    /**
-     * 判断是不是数字 int double long float
-     */
-    public static boolean isNumber(String s) {
-        return PTN_NUM.matcher(s).matches();
-    }
 
     /**
      * 判断是不是运算符
@@ -71,15 +89,23 @@ public class ReversePolishMultiCalc {
         return LEVEL_HIGH;
     }
 
+    public static boolean checkIsRight(String obj) {
+        return obj != null && (obj.endsWith(RIGHT) || obj.endsWith(RIGHT_CH));
+    }
+
+    public static boolean checkIsLeft(String obj) {
+        return obj != null && (obj.startsWith(LEFT) || obj.startsWith(LEFT_CH));
+    }
+
     /**
-     * 匹配
+     * 中缀表达式转后缀表达式
      */
     public static List<String> parseSuffix(String s) {
         if (ObjectUtil.isBlank(s)) {
             throw new IllegalArgumentException(s);
         }
 
-        Stack<String> symbolStack = new Stack<>();
+        Deque<String> symbolStack = new ArrayDeque<>();
         List<String> numStack = new ArrayList<>();
 
         s = replaceAllBlank(s);
@@ -88,20 +114,20 @@ public class ReversePolishMultiCalc {
         Matcher matcher = PTN_SYMBOL.matcher(s);
         while (matcher.find()) {
             String symbol = matcher.group();
-            if (LEFT.equals(symbol) ) {
-                symbolStack.push(symbol);
-            } else if (RIGHT.equals(symbol)) {
+            if (checkIsLeft(symbol)) {
+                symbolStack.add(symbol);
+            } else if (checkIsRight(symbol)) {
                 String pop = "";
                 numStack.add(s.substring(pointer, matcher.start()));
 
                 while (!symbolStack.isEmpty()) {
-                    pop = symbolStack.pop();
-                    if (Objects.equals(pop, LEFT)) {
+                    pop = symbolStack.pollLast();
+                    if (checkIsLeft(pop)) {
                         break;
                     }
                     numStack.add(pop);
                 }
-                if (!pop.equals(LEFT)) {
+                if (!checkIsLeft(pop)) {
                     throw new ServiceException("bracket not match");
                 }
 
@@ -114,11 +140,12 @@ public class ReversePolishMultiCalc {
                     numStack.add(s.substring(pointer, numEnd));
                 }
                 int currentLevel = calcLevel(symbol);
-                if (symbolStack.isEmpty() || calcLevel(symbolStack.peek()) < currentLevel || calcLevel(symbolStack.peek()) == LEVEL_HIGH) {
+                String last;
+                if (symbolStack.isEmpty() || calcLevel(last = symbolStack.peekLast()) < currentLevel || checkIsLeft(last)) {
                     symbolStack.add(symbol);
                 } else {
-                    while (!symbolStack.isEmpty() && calcLevel(symbolStack.peek()) >= currentLevel) {
-                        numStack.add(symbolStack.pop());
+                    while (!symbolStack.isEmpty() && !checkIsLeft(last = symbolStack.peekLast()) && calcLevel(last) >= currentLevel) {
+                        numStack.add(symbolStack.pollLast());
                     }
                     symbolStack.add(symbol);
                 }
@@ -127,16 +154,15 @@ public class ReversePolishMultiCalc {
         }
         numStack.add(s.substring(pointer));
         while (!symbolStack.isEmpty()) {
-            numStack.add(symbolStack.pop());
+            numStack.add(symbolStack.pollLast());
         }
-
         return numStack;
     }
 
     /**
-     * 算出结果
+     * 计算后缀表达式
      */
-    public Numbers doCalc(List<String> list) {
+    public Numbers doCalc(List<String> list, Map<String, Object> symbolMap) {
         ArrayDeque<Object> numDeque = new ArrayDeque<>();
         for (String ele : list) {
             if (isSymbol(ele)) {
@@ -145,7 +171,7 @@ public class ReversePolishMultiCalc {
                 Numbers res = doTheMath(num2, num1, ele);
                 numDeque.addLast(res);
             } else {
-                numDeque.addLast(ele);
+                numDeque.addLast(symbolMap.getOrDefault(ele, ele));
             }
         }
         return Numbers.of(numDeque.pop());
@@ -174,9 +200,17 @@ public class ReversePolishMultiCalc {
      */
     public static void main(String[] args) {
         //String math = "9+(3-1)*3+10/2";
-        String math = "12.8 + (2 - 3)*4+10/5.0";
-        ReversePolishMultiCalc calc = new ReversePolishMultiCalc();
-        System.out.println(calc.parseSuffix(math));
+//        String math = "12.8 + (2 - 3)*4+10/5.0";
+        String math = "（氯化钠+无盐固形物-灰分*密度）*计量量*17/密度/100 ";
+        Calculcations cal = Calculcations.of(math).setDivScale(6);
+
+        System.out.println(cal.calculate(new JSONObject()
+                .set("氯化钠", 1)
+                .set("无盐固形物", 2)
+                .set("灰分", 3)
+                .set("密度", 4)
+                .set("计量量", 5)
+        ));
 
     }
 }
