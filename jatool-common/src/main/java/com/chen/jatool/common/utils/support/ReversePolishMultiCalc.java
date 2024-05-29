@@ -74,7 +74,7 @@ public class ReversePolishMultiCalc {
     /**
      * 匹配
      */
-    public static List<String> doMatch(String s) {
+    public static List<String> parseSuffix(String s) {
         if (ObjectUtil.isBlank(s)) {
             throw new IllegalArgumentException(s);
         }
@@ -90,12 +90,9 @@ public class ReversePolishMultiCalc {
             String symbol = matcher.group();
             if (LEFT.equals(symbol) ) {
                 symbolStack.push(symbol);
-                pointer = matcher.end();
             } else if (RIGHT.equals(symbol)) {
                 String pop = "";
-                String num = s.substring(pointer, matcher.start());
-                numStack.add(num);
-                pointer = matcher.end();
+                numStack.add(s.substring(pointer, matcher.start()));
 
                 while (!symbolStack.isEmpty()) {
                     pop = symbolStack.pop();
@@ -111,13 +108,11 @@ public class ReversePolishMultiCalc {
             } else {
                 int numEnd = matcher.start();
                 if (numEnd == 0) {
-                    throw new ServiceException("symbol err");
+                    throw new ServiceException("symbol err , first symbol wrong");
                 }
                 if (pointer != numEnd) {
-                    String num = s.substring(pointer, numEnd);
-                    numStack.add(num);
+                    numStack.add(s.substring(pointer, numEnd));
                 }
-                pointer = matcher.end();
                 int currentLevel = calcLevel(symbol);
                 if (symbolStack.isEmpty() || calcLevel(symbolStack.peek()) < currentLevel || calcLevel(symbolStack.peek()) == LEVEL_HIGH) {
                     symbolStack.add(symbol);
@@ -127,9 +122,8 @@ public class ReversePolishMultiCalc {
                     }
                     symbolStack.add(symbol);
                 }
-
-
             }
+            pointer = matcher.end();
         }
         numStack.add(s.substring(pointer));
         while (!symbolStack.isEmpty()) {
@@ -182,7 +176,7 @@ public class ReversePolishMultiCalc {
         //String math = "9+(3-1)*3+10/2";
         String math = "12.8 + (2 - 3)*4+10/5.0";
         ReversePolishMultiCalc calc = new ReversePolishMultiCalc();
-        System.out.println(calc.doMatch(math));
+        System.out.println(calc.parseSuffix(math));
 
     }
 }
