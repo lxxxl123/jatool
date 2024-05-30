@@ -121,7 +121,6 @@ public class Formulas {
 
         s = replaceAllBlank(s);
         s = PTN_NEGATIVE.matcher(s).replaceAll("-1*");
-        System.out.println(s);
 
         int pointer = 0;
         Matcher matcher = PTN_SYMBOL.matcher(s);
@@ -220,7 +219,8 @@ public class Formulas {
     public static void main(String[] args) {
         //String math = "9+(3-1)*3+10/2";
 //        String math = "12.8 + (2 - 3)*4+10/5.0"; // 后缀表达式为[12.8, 2, 3, -, 4, *, +, 10, 5.0, /, +]
-        String math = "（氯化钠+无盐固形物-灰分*密度）*计量量/密度/100 ";
+//        String math = "（氯化钠+无盐固形物-灰分*密度）*计量量/密度/100 ";
+        String math = "1*-1";
         Formulas formulas = Formulas.of(math).setDivScale(6);
         System.out.println(formulas.getSuffixExpression());
 
