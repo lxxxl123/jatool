@@ -53,20 +53,21 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return res.divide(nums.size(), scale);
     }
 
-    /**
-     * 计算标准偏差（又称为-样品标准差）
-     */
     public static Numbers stdev(List nums){
         return stdev(nums, 16);
     }
 
     /**
+     * 计算标准偏差（又称为-样品标准差）
      * 最大精度应该为15位左右 , 再大可能精度丢失 ， 由sqrt决定 ， 除非自行实现sqrt
      * @param scale 计算过程的精度，并非结果精度
      */
     public static Numbers stdev(List nums, int scale) {
         if (CollUtil.isEmpty(nums)) {
             return null;
+        }
+        if (nums.size() == 1) {
+            return Numbers.of(0);
         }
         Numbers avg = avg(nums, scale);
         Numbers res = of(0);
@@ -82,12 +83,14 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
             throw new ServiceException("Decimals can not be blank , o = {}", o);
         }
         if (o instanceof Numbers) {
-            return (Numbers) o;
+            return Numbers.of(((Numbers) o).getDecimal());
         }
         BigDecimal decimal = null;
         Numbers numbers = new Numbers();
         BigDecimal div = BigDecimal.ONE;
-        if (o instanceof Number) {
+        if (o instanceof BigDecimal) {
+            decimal = (BigDecimal) o;
+        } else if (o instanceof Number) {
             decimal = NumberUtil.toBigDecimal((Number) o);
         } else if (o instanceof String) {
             String str = ((String) o).trim();
@@ -140,17 +143,26 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     }
 
     public Numbers add(Object o) {
-        decimal = getDecimal().add(of(o).getDecimal());
+        decimal = getDecimal().add(parseDecimal(o));
         return this;
+    }
+    
+    public static BigDecimal parseDecimal(Object obj){
+        if (obj instanceof Numbers) {
+            return ((Numbers) obj).getDecimal();
+        } else if (obj instanceof BigDecimal) {
+            return (BigDecimal) obj;
+        }
+        return Numbers.of(obj).getDecimal();
     }
 
     public Numbers subtract(Object o) {
-        decimal = getDecimal().subtract(of(o).getDecimal());
+        decimal = getDecimal().subtract(parseDecimal(o));
         return this;
     }
 
     public Numbers multiply(Object o) {
-        decimal = getDecimal().multiply(of(o).getDecimal());
+        decimal = getDecimal().multiply(parseDecimal(o));
         return this;
     }
 
@@ -158,12 +170,12 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
      * 四舍五入 , 保留scale位小数
      */
     public Numbers multiply(Object o, int scale) {
-        decimal = getDecimal().multiply(of(o).getDecimal()).setScale(scale, RoundingMode.HALF_UP);
+        decimal = getDecimal().multiply(parseDecimal(o)).setScale(scale, RoundingMode.HALF_UP);
         return this;
     }
 
     public Numbers divide(Object o) {
-        decimal = getDecimal().divide(of(o).getDecimal());
+        decimal = getDecimal().divide(parseDecimal(o));
         return this;
     }
 
@@ -181,7 +193,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
      * @param scale 四舍五入 , 保留scale位小数
      */
     public Numbers divide(Object o, int scale) {
-        decimal = getDecimal().divide(of(o).getDecimal(), scale, RoundingMode.HALF_UP);
+        decimal = getDecimal().divide(parseDecimal(o), scale, RoundingMode.HALF_UP);
         return this;
     }
 
