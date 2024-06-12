@@ -58,6 +58,9 @@ public class FormularUtil {
                 }
             }
 
+            /**
+             * 获取任意连续字符或数字
+             */
             BigDecimal parseFactor() {
                 if (eat('+')) return parseFactor(); // unary plus
                 if (eat('-')) return parseFactor().negate(); // unary minus
@@ -76,17 +79,15 @@ public class FormularUtil {
                     if (eat('(')) {
                         x = parseExpression();
                         if (!eat(')')) throw new RuntimeException("Missing ')' after argument to " + func);
-                    } else {
+                    } else if ((x = map.get(func)) == null) {
                         x = parseFactor();
-                    }
-                    if (func.equals("sqrt")) x = BigDecimal.valueOf(Math.sqrt(x.doubleValue()));
-                    else if (func.equals("sin")) x = BigDecimal.valueOf(Math.sin(Math.toRadians(x.doubleValue())));
-                    else if (func.equals("cos")) x = BigDecimal.valueOf(Math.cos(Math.toRadians(x.doubleValue())));
-                    else if (func.equals("tan")) x = BigDecimal.valueOf(Math.tan(Math.toRadians(x.doubleValue())));
-                    else if ((x = map.get(func)) != null) {
-                        ;
-                    } else {
-                        throw new RuntimeException("Unknown function: " + func);
+                        if (func.equals("sqrt")) x = BigDecimal.valueOf(Math.sqrt(x.doubleValue()));
+                        else if (func.equals("sin")) x = BigDecimal.valueOf(Math.sin(Math.toRadians(x.doubleValue())));
+                        else if (func.equals("cos")) x = BigDecimal.valueOf(Math.cos(Math.toRadians(x.doubleValue())));
+                        else if (func.equals("tan")) x = BigDecimal.valueOf(Math.tan(Math.toRadians(x.doubleValue())));
+                        else {
+                            throw new RuntimeException("Unknown function: " + func);
+                        }
                     }
                 } else {
                     throw new RuntimeException("Unexpected: " + (char) ch);
