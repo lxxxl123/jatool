@@ -1,11 +1,15 @@
 package com.chen.jatool.common.utils.support;
 
+import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.ObjectUtil;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.sql.SQLOutput;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -34,7 +38,7 @@ public class Formulas {
      * 输入参数进行计算
      */
     public Numbers cals(Map<String, Object> argsMap) {
-        return doCalc(this.suffixExpression, argsMap);
+        return doCalc(this.suffixExpression, (Map)argsMap);
     }
 
     /**
@@ -170,21 +174,30 @@ public class Formulas {
     /**
      * 计算后缀表达式
      */
-    public Numbers doCalc(List<String> list, Map<String, Object> symbolMap) {
-        ArrayDeque<Object> numDeque = new ArrayDeque<>();
+    public Numbers doCalc(List<String> list, Map<String, BigDecimal> symbolMap) {
+        ArrayDeque<BigDecimal> numDeque = new ArrayDeque<>();
         for (String ele : list) {
-            if (PTN_CALCULATE_SYMBOL.matcher(ele).matches()) {
-                Object num1 = numDeque.pollLast();
-                Object num2 = numDeque.pollLast();
-                Numbers res = doTheMath(num2, num1, ele);
+            if (StrUtil.equalsAny(ele, ADD, MINUS, MUL, DIV)) {
+                BigDecimal num1 = numDeque.pollLast();
+                BigDecimal num2 = numDeque.pollLast();
+                BigDecimal res = doTheMath(num2, num1, ele);
                 numDeque.addLast(res);
             } else {
-                if (ele.startsWith(MINUS)) {
+                boolean negative = ele.startsWith(MINUS);
+                if (negative) {
                     ele = ele.substring(1);
-                    numDeque.addLast(MINUS + symbolMap.getOrDefault(ele, ele));
-                } else {
-                    numDeque.addLast(symbolMap.getOrDefault(ele, ele));
                 }
+                char ch = ele.charAt(0);
+                BigDecimal x;
+                if (ch <= '9' && ch >= '0') {
+                    x = new BigDecimal(ele);
+                } else {
+                    x = symbolMap.get(ele);
+                }
+                if (negative) {
+                    x = x.negate();
+                }
+                numDeque.addLast(x);
             }
         }
         return Numbers.of(numDeque.pop());
@@ -193,17 +206,17 @@ public class Formulas {
     /**
      * 运算
      */
-    public Numbers doTheMath(Object s1, Object s2, String symbol) {
+    public BigDecimal doTheMath(BigDecimal s1, BigDecimal s2, String symbol) {
         try {
             switch (symbol) {
                 case ADD:
-                    return Numbers.of(s1).add(s2);
+                    return s1.add(s2);
                 case MINUS:
-                    return Numbers.of(s1).subtract(s2);
+                    return s1.subtract(s2);
                 case MUL:
-                    return Numbers.of(s1).multiply(s2);
+                    return s1.multiply(s2);
                 case DIV:
-                    return Numbers.of(s1).divide(s2, divScale);
+                    return s1.divide(s2, divScale, RoundingMode.HALF_UP);
                 default:
                     throw new IllegalArgumentException(symbol);
             }
@@ -231,6 +244,7 @@ public class Formulas {
                 .set("密度", 4)
                 .set("计量量", 10)
         ));
+
     }
 }
 

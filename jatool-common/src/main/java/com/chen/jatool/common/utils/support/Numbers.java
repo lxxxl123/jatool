@@ -53,13 +53,14 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return res.divide(nums.size(), scale);
     }
 
-    public static Numbers stdev(List nums){
+    public static Numbers stdev(List nums) {
         return stdev(nums, 16);
     }
 
     /**
      * 计算标准偏差（又称为-样品标准差）
      * 最大精度应该为15位左右 , 再大可能精度丢失 ， 由sqrt决定 ， 除非自行实现sqrt
+     *
      * @param scale 计算过程的精度，并非结果精度
      */
     public static Numbers stdev(List nums, int scale) {
@@ -107,18 +108,17 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
                 lastIdx--;
             }
             str = str.substring(0, lastIdx + 1);
-            if (StrUtil.containsIgnoreCase(str, "e")) {
-                try {
-                    decimal = new BigDecimal(str);
-                } catch (Exception e) {
-                    Convert.convertWithCheck(BigDecimal.class, o, null, false);
-                }
-            } else if (StrUtil.startWithAnyIgnoreCase(str, "0b")) {
+            if (StrUtil.startWithAnyIgnoreCase(str, "0b")) {
                 decimal = new BigDecimal(Integer.parseInt(str.substring(2), 2));
             } else if (StrUtil.startWithAnyIgnoreCase(str, "0o")) {
                 decimal = new BigDecimal(Integer.parseInt(str.substring(2), 8));
             } else {
-                decimal = Convert.convertWithCheck(BigDecimal.class, o, null, false);
+                try {
+                    decimal = new BigDecimal(str);
+                } catch (Exception e) {
+                    // convert性能一般
+                    Convert.convertWithCheck(BigDecimal.class, o, null, false);
+                }
             }
         } else {
             decimal = Convert.toBigDecimal(o);
@@ -146,8 +146,8 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         decimal = getDecimal().add(parseDecimal(o));
         return this;
     }
-    
-    public static BigDecimal parseDecimal(Object obj){
+
+    public static BigDecimal parseDecimal(Object obj) {
         if (obj instanceof Numbers) {
             return ((Numbers) obj).getDecimal();
         } else if (obj instanceof BigDecimal) {
@@ -284,7 +284,6 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     public String format(String pattern) {
         return new DecimalFormat(pattern).format(decimal);
     }
-
 
 
 }
