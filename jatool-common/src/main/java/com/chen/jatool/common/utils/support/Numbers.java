@@ -112,12 +112,14 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
                 decimal = new BigDecimal(Integer.parseInt(str.substring(2), 2));
             } else if (StrUtil.startWithAnyIgnoreCase(str, "0o")) {
                 decimal = new BigDecimal(Integer.parseInt(str.substring(2), 8));
+            } else if (StrUtil.startWithAnyIgnoreCase(str, "0x")) {
+                decimal = new BigDecimal(Long.parseLong(str.substring(2), 16));
             } else {
                 try {
                     decimal = new BigDecimal(str);
                 } catch (Exception e) {
                     // convert性能一般
-                    Convert.convertWithCheck(BigDecimal.class, o, null, false);
+                    decimal = Convert.convertWithCheck(BigDecimal.class, o, null, false);
                 }
             }
         } else {
