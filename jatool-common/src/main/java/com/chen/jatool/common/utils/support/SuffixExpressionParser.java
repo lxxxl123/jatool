@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.SQLOutput;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -20,16 +19,16 @@ import java.util.regex.Pattern;
  * @author chenwh3
  */
 @Slf4j
-public class Formulas {
+public class SuffixExpressionParser {
 
     @Getter
     private List<String> suffixExpression;
 
-    private Formulas() {
+    private SuffixExpressionParser() {
     }
 
-    public static Formulas of(String infixExpression) {
-        Formulas cal = new Formulas();
+    public static SuffixExpressionParser of(String infixExpression) {
+        SuffixExpressionParser cal = new SuffixExpressionParser();
         cal.suffixExpression = parseSuffix(infixExpression);
         return cal;
     }
@@ -58,7 +57,7 @@ public class Formulas {
 
     private Integer divScale = 4;
 
-    public Formulas setDivScale(Integer divScale) {
+    public SuffixExpressionParser setDivScale(Integer divScale) {
         this.divScale = divScale;
         return this;
     }
@@ -234,7 +233,7 @@ public class Formulas {
 //        String math = "12.8 + (2 - 3)*4+10/5.0"; // 后缀表达式为[12.8, 2, 3, -, 4, *, +, 10, 5.0, /, +]
 //        String math = "（氯化钠+无盐固形物-灰分*密度）*计量量/密度/100 ";
         String math = "1*-1";
-        Formulas formulas = Formulas.of(math).setDivScale(6);
+        SuffixExpressionParser formulas = SuffixExpressionParser.of(math).setDivScale(6);
         System.out.println(formulas.getSuffixExpression());
 
         System.out.println(formulas.cals(new JSONObject()

@@ -23,7 +23,7 @@ public class Test {
         System.out.println(res);
         System.out.println("cost " + (System.currentTimeMillis() - current));
         current = System.currentTimeMillis();
-        Formulas formulas = Formulas.of("a+2*(3-4)/5");
+        SuffixExpressionParser formulas = SuffixExpressionParser.of("a+2*(3-4)/5");
         for (int i = 0; i < 1000000; i++) {
             res = formulas.cals((Map) map).getDecimal();
         }

@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 公式计算工具
  * @author chenwh3
  */
 public class FormulaUtil {
@@ -237,5 +238,9 @@ public class FormulaUtil {
             }
 
         }.parse();
+    }
+
+    public static void main(String[] args) {
+        System.out.println(eval("1 > 3 ? 2 :max(3,1>5?4:3*5+1,10)", null));
     }
 }
