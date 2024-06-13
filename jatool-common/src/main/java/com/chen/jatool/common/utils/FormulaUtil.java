@@ -1,11 +1,13 @@
 package com.chen.jatool.common.utils;
 
+
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
 
 /**
  * 公式计算工具
@@ -15,24 +17,40 @@ import java.util.Map;
 public class FormulaUtil {
 
     public static final char PLUS = '+';
-    public static final char SUB = '-';
-    public static final char SPACE = ' ';
-    public static final char MULIT = '*';
-    public static final char DIV = '/';
-    public static final char A = 'a';
-    public static final char Z = 'z';
-    public static final char L_BRACKET = '(';
-    public static final String SQRT = "sqrt";
-    public static final char R_BRACKET = ')';
-    public static final char CHAR_0 = '0';
-    public static final char CHAR_9 = '9';
-    public static final String SIN = "sin";
-    public static final String COS = "cos";
-    public static final String TAN = "tan";
-    public static final char DOT = '.';
-    public static final String MIN = "min";
-    public static final String MAX = "max";
 
+    public static final char SUB = '-';
+
+    public static final char SPACE = ' ';
+
+    public static final char MULIT = '*';
+
+    public static final char DIV = '/';
+
+    public static final char A = 'a';
+
+    public static final char Z = 'z';
+
+    public static final char L_BRACKET = '(';
+
+    public static final String SQRT = "sqrt";
+
+    public static final char R_BRACKET = ')';
+
+    public static final char CHAR_0 = '0';
+
+    public static final char CHAR_9 = '9';
+
+    public static final String SIN = "sin";
+
+    public static final String COS = "cos";
+
+    public static final String TAN = "tan";
+
+    public static final char DOT = '.';
+
+    public static final String MIN = "min";
+
+    public static final String MAX = "max";
 
     private static boolean isNum(char ch) {
         return (ch >= CHAR_0 && ch <= CHAR_9) || ch == DOT;
@@ -42,10 +60,10 @@ public class FormulaUtil {
         return ch >= A && ch <= Z || StringUtil.isChinese(ch);
     }
 
-
     public static BigDecimal eval(final String str, Map<String, BigDecimal> map) {
         return new Object() {
             int pos = -1;
+
             int ch;
 
             final MathContext mc = new MathContext(6, RoundingMode.HALF_UP);
@@ -70,7 +88,6 @@ public class FormulaUtil {
                 return x;
             }
 
-
             // Grammar:
             // expression = term | expression `+` term | expression `-` term
             // term = factor | term `*` factor | term `/` factor
@@ -89,15 +106,14 @@ public class FormulaUtil {
                 BigDecimal x = parseLogicOr();
                 for (; ; ) {
                     if (eat('?')) {
-                        BigDecimal y = parseLogicOr();
+                        BigDecimal y = parseTernary();
                         if (!eat(':')) throw new RuntimeException("Missing ':'");
-                        BigDecimal z = parseLogicOr();
+                        BigDecimal z = parseTernary();
                         return x.compareTo(BigDecimal.ZERO) > 0 ? y : z;
                     } else {
                         return x;
                     }
                 }
-
             }
 
             /**
@@ -126,10 +142,6 @@ public class FormulaUtil {
                     }
                 }
             }
-
-
-
-
 
             /**
              * 解析关系运算符
@@ -190,7 +202,6 @@ public class FormulaUtil {
                 return map != null ? map.get(str) : null;
             }
 
-
             /**
              * 获取任意连续字符或数字
              */
@@ -244,11 +255,12 @@ public class FormulaUtil {
 
                 return x;
             }
-
         }.parse();
     }
 
     public static void main(String[] args) {
-        System.out.println(eval("1 > 3 && 1 || 0 && 1? 2 : max(3,1>5 && 5 || 3?4:3*5+1,10)", null));
+        //        System.out.println(eval("1 > 3 && 1 || 0 && 1? 2 : max(3,1>5 && 5 || 3?4:3*5+1,10)", null));
+        System.out.println(eval("1 ? 0 ? 1:2 : 3 ? 4: 5", null));
+        System.out.println(true ? false ? 1 : 2 : true ? 4 : 5);
     }
 }
