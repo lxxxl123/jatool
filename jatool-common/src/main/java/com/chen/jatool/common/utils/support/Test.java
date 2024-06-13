@@ -13,11 +13,11 @@ public class Test {
 
     public static void main(String[] args) {
         Map<String, BigDecimal> map = new HashMap<>();
-        map.put("a", new BigDecimal(10));
+        map.put("a", new BigDecimal(100));
         long current = System.currentTimeMillis();
         BigDecimal res = null;
         for (int i = 0; i < 1000000; i++) {
-            res = FormularUtil.eval("a+2*(3-4)/5", map);
+            res = FormularUtil.eval("a%+2*(3-4)/5", map);
         }
         System.out.println(res);
         System.out.println("cost " + (System.currentTimeMillis() - current));

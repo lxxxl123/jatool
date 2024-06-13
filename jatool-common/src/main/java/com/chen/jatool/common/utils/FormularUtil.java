@@ -9,16 +9,36 @@ import java.util.Map;
  */
 public class FormularUtil {
 
+    public static final char PLUS = '+';
+    public static final char SUB = '-';
+    public static final char SPACE = ' ';
+    public static final char MULIT = '*';
+    public static final char DIV = '/';
+    public static final char A = 'a';
+    public static final char Z = 'z';
+    public static final char L_BRACKET = '(';
+    public static final String SQRT = "sqrt";
+    public static final char R_BRACKET = ')';
+    public static final char CHAR_0 = '0';
+    public static final char CHAR_9 = '9';
+    public static final String SIN = "sin";
+    public static final String COS = "cos";
+    public static final String TAN = "tan";
+    public static final char DOT = '.';
+
     public static BigDecimal eval(final String str, Map<String, BigDecimal> map) {
         return new Object() {
-            int pos = -1, ch;
+            int pos = -1;
+            int ch;
+
+            int scale = 4;
 
             void nextChar() {
                 ch = (++pos < str.length()) ? str.charAt(pos) : -1;
             }
 
             boolean eat(int charToEat) {
-                while (ch == ' ') nextChar();
+                while (ch == SPACE) nextChar();
                 if (ch == charToEat) {
                     nextChar();
                     return true;
@@ -43,8 +63,8 @@ public class FormularUtil {
             BigDecimal parseExpression() {
                 BigDecimal x = parseTerm();
                 for (; ; ) {
-                    if (eat('+')) x = x.add(parseTerm()); // addition
-                    else if (eat('-')) x = x.subtract(parseTerm()); // subtraction
+                    if (eat(PLUS)) x = x.add(parseTerm()); // addition
+                    else if (eat(SUB)) x = x.subtract(parseTerm()); // subtraction
                     else return x;
                 }
             }
@@ -52,8 +72,8 @@ public class FormularUtil {
             BigDecimal parseTerm() {
                 BigDecimal x = parseFactor();
                 for (; ; ) {
-                    if (eat('*')) x = x.multiply(parseFactor()); // multiplication
-                    else if (eat('/')) x = x.divide(parseFactor(), 4, RoundingMode.HALF_UP); // division
+                    if (eat(MULIT)) x = x.multiply(parseFactor()); // multiplication
+                    else if (eat(DIV)) x = x.divide(parseFactor(), scale, RoundingMode.HALF_UP); // division
                     else return x;
                 }
             }
@@ -61,30 +81,31 @@ public class FormularUtil {
             /**
              * 获取任意连续字符或数字
              */
+            @SuppressWarnings({"fallthrough","unchecked"})
             BigDecimal parseFactor() {
-                if (eat('+')) return parseFactor(); // unary plus
-                if (eat('-')) return parseFactor().negate(); // unary minus
+                if (eat(PLUS)) return parseFactor(); // unary plus
+                if (eat(SUB)) return parseFactor().negate(); // unary minus
 
                 BigDecimal x;
                 int startPos = this.pos;
-                if (eat('(')) { // parentheses
+                if (eat(L_BRACKET)) { // parentheses
                     x = parseExpression();
-                    if (!eat(')')) throw new RuntimeException("Missing ')'");
-                } else if ((ch >= '0' && ch <= '9') || ch == '.') { // numbers
-                    while ((ch >= '0' && ch <= '9') || ch == '.') nextChar();
+                    if (!eat(R_BRACKET)) throw new RuntimeException("Missing ')'");
+                } else if ((ch >= CHAR_0 && ch <= CHAR_9) || ch == DOT) { // numbers
+                    while ((ch >= CHAR_0 && ch <= CHAR_9) || ch == DOT) nextChar();
                     x = new BigDecimal(str.substring(startPos, this.pos));
-                } else if (ch >= 'a' && ch <= 'z') { // functions
-                    while (ch >= 'a' && ch <= 'z') nextChar();
+                } else if (ch >= A && ch <= Z) { // functions
+                    while (ch >= A && ch <= Z) nextChar();
                     String func = str.substring(startPos, this.pos);
-                    if (eat('(')) {
+                    if (eat(L_BRACKET)) {
                         x = parseExpression();
-                        if (!eat(')')) throw new RuntimeException("Missing ')' after argument to " + func);
+                        if (!eat(R_BRACKET)) throw new RuntimeException("Missing ')' after argument to " + func);
                     } else if ((x = map.get(func)) == null) {
                         x = parseFactor();
-                        if (func.equals("sqrt")) x = BigDecimal.valueOf(Math.sqrt(x.doubleValue()));
-                        else if (func.equals("sin")) x = BigDecimal.valueOf(Math.sin(Math.toRadians(x.doubleValue())));
-                        else if (func.equals("cos")) x = BigDecimal.valueOf(Math.cos(Math.toRadians(x.doubleValue())));
-                        else if (func.equals("tan")) x = BigDecimal.valueOf(Math.tan(Math.toRadians(x.doubleValue())));
+                        if (func.equals(SQRT)) x = BigDecimal.valueOf(Math.sqrt(x.doubleValue()));
+                        else if (func.equals(SIN)) x = BigDecimal.valueOf(Math.sin(Math.toRadians(x.doubleValue())));
+                        else if (func.equals(COS)) x = BigDecimal.valueOf(Math.cos(Math.toRadians(x.doubleValue())));
+                        else if (func.equals(TAN)) x = BigDecimal.valueOf(Math.tan(Math.toRadians(x.doubleValue())));
                         else {
                             throw new RuntimeException("Unknown function: " + func);
                         }
@@ -93,8 +114,14 @@ public class FormularUtil {
                     throw new RuntimeException("Unexpected: " + (char) ch);
                 }
 
-                if (eat('^'))
+                if (eat('^')){
                     x = BigDecimal.valueOf(Math.pow(x.doubleValue(), parseFactor().doubleValue())); // exponentiation
+                }
+
+                for (;;) {
+                    if (eat('%')) x = x.divide(new BigDecimal(100), scale, RoundingMode.HALF_UP);
+                    else break;
+                }
 
                 return x;
             }
