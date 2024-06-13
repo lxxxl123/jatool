@@ -1,6 +1,6 @@
 package com.chen.jatool.common.utils.support;
 
-import com.chen.jatool.common.utils.FormularUtil;
+import com.chen.jatool.common.utils.FormularsUtil;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
@@ -17,7 +17,7 @@ public class Test {
         long current = System.currentTimeMillis();
         BigDecimal res = null;
         for (int i = 0; i < 1000000; i++) {
-            res = FormularUtil.eval("a%+2*(3-4)/5", map);
+            res = FormularsUtil.eval("a%+2*(3-4)/5", map);
         }
         System.out.println(res);
         System.out.println("cost " + (System.currentTimeMillis() - current));

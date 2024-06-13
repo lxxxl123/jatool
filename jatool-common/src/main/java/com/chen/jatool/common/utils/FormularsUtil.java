@@ -1,13 +1,14 @@
 package com.chen.jatool.common.utils;
 
 import java.math.BigDecimal;
+import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.Map;
 
 /**
  * @author chenwh3
  */
-public class FormularUtil {
+public class FormularsUtil {
 
     public static final char PLUS = '+';
     public static final char SUB = '-';
@@ -31,7 +32,7 @@ public class FormularUtil {
             int pos = -1;
             int ch;
 
-            int scale = 4;
+            MathContext mc = new MathContext(6, RoundingMode.HALF_UP);
 
             void nextChar() {
                 ch = (++pos < str.length()) ? str.charAt(pos) : -1;
@@ -73,7 +74,7 @@ public class FormularUtil {
                 BigDecimal x = parseFactor();
                 for (; ; ) {
                     if (eat(MULIT)) x = x.multiply(parseFactor()); // multiplication
-                    else if (eat(DIV)) x = x.divide(parseFactor(), scale, RoundingMode.HALF_UP); // division
+                    else if (eat(DIV)) x = x.divide(parseFactor(), mc); // division
                     else return x;
                 }
             }
@@ -81,7 +82,6 @@ public class FormularUtil {
             /**
              * 获取任意连续字符或数字
              */
-            @SuppressWarnings({"fallthrough","unchecked"})
             BigDecimal parseFactor() {
                 if (eat(PLUS)) return parseFactor(); // unary plus
                 if (eat(SUB)) return parseFactor().negate(); // unary minus
@@ -119,7 +119,7 @@ public class FormularUtil {
                 }
 
                 for (;;) {
-                    if (eat('%')) x = x.divide(new BigDecimal(100), scale, RoundingMode.HALF_UP);
+                    if (eat('%')) x = x.divide(new BigDecimal(100), mc);
                     else break;
                 }
 
