@@ -100,7 +100,7 @@ public class FormulaUtil {
             }
 
             /**
-             * 三目运算符
+             * 三目运算符 , 运算符较为特殊，优先级从右到左
              */
             BigDecimal parseTernary() {
                 BigDecimal x = parseLogicOr();
