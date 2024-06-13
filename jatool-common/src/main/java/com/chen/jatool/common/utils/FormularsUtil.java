@@ -27,6 +27,7 @@ public class FormularsUtil {
     public static final String TAN = "tan";
     public static final char DOT = '.';
 
+
     public static BigDecimal eval(final String str, Map<String, BigDecimal> map) {
         return new Object() {
             int pos = -1;
@@ -94,8 +95,8 @@ public class FormularsUtil {
                 } else if ((ch >= CHAR_0 && ch <= CHAR_9) || ch == DOT) { // numbers
                     while ((ch >= CHAR_0 && ch <= CHAR_9) || ch == DOT) nextChar();
                     x = new BigDecimal(str.substring(startPos, this.pos));
-                } else if (ch >= A && ch <= Z) { // functions
-                    while (ch >= A && ch <= Z) nextChar();
+                } else if (ch >= A && ch <= Z || StringUtil.isChinese((char)ch)) { // functions
+                    while (ch >= A && ch <= Z || StringUtil.isChinese((char) ch)) nextChar();
                     String func = str.substring(startPos, this.pos);
                     if (eat(L_BRACKET)) {
                         x = parseExpression();
