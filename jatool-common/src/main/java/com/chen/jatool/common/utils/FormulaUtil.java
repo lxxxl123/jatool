@@ -9,6 +9,7 @@ import java.util.Map;
 
 /**
  * 公式计算工具
+ *
  * @author chenwh3
  */
 public class FormulaUtil {
@@ -85,12 +86,12 @@ public class FormulaUtil {
              * 三目运算符
              */
             BigDecimal parseTernary() {
-                BigDecimal x = parseLogic();
+                BigDecimal x = parseLogicOr();
                 for (; ; ) {
                     if (eat('?')) {
-                        BigDecimal y = parseLogic();
+                        BigDecimal y = parseLogicOr();
                         if (!eat(':')) throw new RuntimeException("Missing ':'");
-                        BigDecimal z = parseLogic();
+                        BigDecimal z = parseLogicOr();
                         return x.compareTo(BigDecimal.ZERO) > 0 ? y : z;
                     } else {
                         return x;
@@ -102,25 +103,32 @@ public class FormulaUtil {
             /**
              * 逻辑运算符号： && ||
              */
-            BigDecimal parseLogic() {
-                BigDecimal x = parseRelational();
-                boolean res;
+            BigDecimal parseLogicOr() {
+                BigDecimal x = parseLogicAnd();
                 for (; ; ) {
-                    if (eat('&') && eat('&')) {
-                        BigDecimal y = parseRelational();
-                        res = x.compareTo(BigDecimal.ZERO) > 0 && y.compareTo(BigDecimal.ZERO) > 0;
-                        break;
-                    } else if (eat('|') && eat('|')) {
-                        BigDecimal y = parseRelational();
-                        res = x.compareTo(BigDecimal.ZERO) > 0 || y.compareTo(BigDecimal.ZERO) > 0;
-                        break;
+                    if (eat('|') && eat('|')) {
+                        BigDecimal y = parseLogicAnd();
+                        x = new BigDecimal(x.compareTo(BigDecimal.ZERO) > 0 || y.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0);
                     } else {
                         return x;
                     }
                 }
-                return res ? BigDecimal.ONE : BigDecimal.ZERO;
-
             }
+
+            BigDecimal parseLogicAnd() {
+                BigDecimal x = parseRelational();
+                for (; ; ) {
+                    if (eat('&') && eat('&')) {
+                        BigDecimal y = parseRelational();
+                        x = new BigDecimal(x.compareTo(BigDecimal.ZERO) > 0 && y.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0);
+                    } else {
+                        return x;
+                    }
+                }
+            }
+
+
+
 
 
             /**
@@ -241,6 +249,6 @@ public class FormulaUtil {
     }
 
     public static void main(String[] args) {
-        System.out.println(eval("1 > 3 ? 2 :max(3,1>5?4:3*5+1,10)", null));
+        System.out.println(eval("1 > 3 && 1 || 0 && 1? 2 :max(3,1>5?4:3*5+1,10)", null));
     }
 }
