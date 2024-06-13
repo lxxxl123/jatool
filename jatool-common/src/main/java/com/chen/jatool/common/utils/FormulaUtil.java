@@ -249,6 +249,6 @@ public class FormulaUtil {
     }
 
     public static void main(String[] args) {
-        System.out.println(eval("1 > 3 && 1 || 0 && 1? 2 :max(3,1>5?4:3*5+1,10)", null));
+        System.out.println(eval("1 > 3 && 1 || 0 && 1? 2 : max(3,1>5 && 5 || 3?4:3*5+1,10)", null));
     }
 }
