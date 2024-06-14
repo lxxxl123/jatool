@@ -51,6 +51,7 @@ public class FormulaUtil {
     public static final String MIN = "min";
 
     public static final String MAX = "max";
+    public static final char PERCENT = '%';
 
     private static boolean isNum(char ch) {
         return (ch >= CHAR_0 && ch <= CHAR_9) || ch == DOT;
@@ -164,6 +165,8 @@ public class FormulaUtil {
                     }
                 } else if (eat('=') && eat('=')) {
                     res = x.compareTo(parseExpression()) == 0;
+                } else if (eat('!') && eat('=')) {
+                    res = x.compareTo(parseExpression()) != 0;
                 } else {
                     return x;
                 }
@@ -184,6 +187,7 @@ public class FormulaUtil {
                 for (; ; ) {
                     if (eat(MULIT)) x = x.multiply(parseFactor()); // multiplication
                     else if (eat(DIV)) x = x.divide(parseFactor(), mc); // division
+                    else if (eat(PERCENT)) x = x.remainder(parseFactor());
                     else return x;
                 }
             }
@@ -248,11 +252,6 @@ public class FormulaUtil {
                     x = BigDecimal.valueOf(Math.pow(x.doubleValue(), parseFactor().doubleValue())); // exponentiation
                 }
 
-                for (; ; ) {
-                    if (eat('%')) x = x.divide(new BigDecimal(100), mc);
-                    else break;
-                }
-
                 return x;
             }
         }.parse();
@@ -260,7 +259,8 @@ public class FormulaUtil {
 
     public static void main(String[] args) {
         //        System.out.println(eval("1 > 3 && 1 || 0 && 1? 2 : max(3,1>5 && 5 || 3?4:3*5+1,10)", null));
-        System.out.println(eval("1 ? 0 ? 1:2 : 3 ? 4: 5", null));
-        System.out.println(true ? false ? 1 : 2 : true ? 4 : 5);
+//        System.out.println(eval("1 ? 0 ? 1:2 : 3 ? 4: 5", null));
+//        System.out.println(true ? false ? 1 : 2 : true ? 4 : 5);
+        System.out.println(eval("1!=1 ? 10%3 : 10%4", null));
     }
 }
