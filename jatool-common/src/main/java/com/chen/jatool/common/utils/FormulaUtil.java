@@ -95,7 +95,6 @@ public class FormulaUtil {
             // factor = `+` factor | `-` factor | `(` expression `)` | number
             //        | functionName `(` expression `)` | functionName factor
             //        | factor `^` factor
-            // 后续考虑用责任链重构 ， 每个parse做成1个类
             private BigDecimal parseFirst() {
                 return parseTernary();
             }
@@ -163,6 +162,10 @@ public class FormulaUtil {
                     } else {
                         res = x.compareTo(parseExpression()) < 0;
                     }
+                } else if (eat('≤')) {
+                    res = x.compareTo(parseExpression()) <= 0;
+                } else if (eat('≥')) {
+                    res = x.compareTo(parseExpression()) >= 0;
                 } else if (eat('=') && eat('=')) {
                     res = x.compareTo(parseExpression()) == 0;
                 } else if (eat('!') && eat('=')) {
