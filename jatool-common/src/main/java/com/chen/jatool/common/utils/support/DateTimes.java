@@ -3,6 +3,7 @@ package com.chen.jatool.common.utils.support;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.date.*;
 import cn.hutool.core.date.format.FastDateFormat;
+import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
 import lombok.Getter;
 import org.apache.commons.lang3.time.DateUtils;
@@ -13,6 +14,8 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author chenwh3
@@ -62,7 +65,7 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return of(o);
     }
 
-    public static DateTimes ofEx(Object o){
+    public static DateTimes ofEx(Object o) {
         if (o == null || "".equals(o)) {
             return null;
         }
@@ -87,8 +90,11 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return of(o);
     }
 
+    private static final Pattern DATE_PATTERN = Pattern.compile("(\\d{4})[.-/](\\d{1,2})[.-/](\\d{1,2})");
+
     public static Date parse(Object obj) {
         try {
+            Matcher mat;
             if (obj instanceof Date) {
                 return (Date) obj;
             } else if (obj instanceof String) {
@@ -97,6 +103,9 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
                     return DatePattern.SIMPLE_MONTH_FORMAT.parse(dateStr);
                 } else if (dateStr.length() == 7) {
                     return DatePattern.NORM_MONTH_FORMAT.parse(dateStr);
+                } else if (dateStr.length() < 10 && dateStr.length() > 7 && (mat = DATE_PATTERN.matcher(dateStr)).matches()) {
+                    dateStr = mat.group(1) + StrUtil.padPre(mat.group(2), 2, "0") + StrUtil.padPre(mat.group(3), 2, "0");
+                    return DatePattern.PURE_DATE_FORMAT.parse(dateStr);
                 }
                 return DateUtil.parse(dateStr);
             } else if (obj instanceof TemporalAccessor) {
@@ -167,7 +176,7 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return DatePattern.PURE_DATE_FORMAT.format(getCalendar());
     }
 
-    public String formatMonth(){
+    public String formatMonth() {
         return DatePattern.NORM_MONTH_FORMAT.format(getCalendar());
     }
 
@@ -175,7 +184,7 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     /**
      * yyyyMM
      */
-    public String formatSimpleMonth(){
+    public String formatSimpleMonth() {
         return DatePattern.SIMPLE_MONTH_FORMAT.format(getCalendar());
     }
 
@@ -189,14 +198,14 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     /**
      * yyyy.MM.dd
      */
-    public String formatDotDate(){
+    public String formatDotDate() {
         return DOT_DATE_FORMAT.format(getCalendar());
     }
 
     /**
      * yyyy.MM.dd HH:mm:ss
      */
-    public String formatDotDateTime(){
+    public String formatDotDateTime() {
         return DOT_DATETIME_FORMAT.format(getCalendar());
     }
 
@@ -221,6 +230,13 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     public DateTimes endOf(int field) {
         calendar = CalendarUtil.ceiling(getCalendar(), DateField.of(field));
         return this;
+    }
+
+    /**
+     * 2023-04-05 12:34:56 -> 2023-12-31 23:59:59
+     */
+    public DateTimes endOfYear() {
+        return endOf(Calendar.YEAR);
     }
 
     /**
@@ -289,25 +305,37 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return this;
     }
 
-    public DateTimes setHour(int value){
+    public DateTimes setHour(int value) {
         return setField(DateField.HOUR_OF_DAY, value);
     }
+
     public DateTimes setDayOfMonth(int value) {
         return setField(DateField.DAY_OF_MONTH, value);
     }
 
-    public DateTimes setMonth(int value){
+    public DateTimes setMonth(int value) {
         return setField(DateField.MONTH, value);
+    }
+
+    public DateTimes setYear(int value) {
+        return setField(DateField.YEAR, value);
     }
 
     public int getDayOfMonth() {
         return getField(DateField.DAY_OF_MONTH);
     }
 
-    public int getYear(){
-        return getField(DateField.YEAR);
+    /**
+     * 1 表示周一，7表示周日； Calendar中 1代表周日，2表示周一
+     *
+     */
+    public int getDayOfWeek() {
+        return (getField(DateField.DAY_OF_WEEK) + 5) % 7 + 1;
     }
 
+    public int getYear() {
+        return getField(DateField.YEAR);
+    }
 
 
     public DateTimes clone() {
@@ -346,7 +374,7 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
             throw new ServiceException("step can not be zero");
         }
         for (DateTimes left = from; left.compareTo(to) * step <= 0; ) {
-            consumer.accept(left);
+            consumer.accept(left.clone());
             left.add(dateField.getValue(), step);
         }
 
@@ -358,14 +386,17 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return list;
     }
 
+    /**
+     * 闭区间：[from , to1) , [to1, to2) , [to2, to]
+     */
     public void loopRange(Object toObj, DateField dateField, int step, BiConsumer<DateTimes, DateTimes> consumer) {
         loopRange(toObj, dateField, step, consumer, true);
     }
 
     /**
      * @param closeRange 是否闭区间
-     *                     true: [from , to1) , [to1, to2) , [to2, to]
-     *                     false: [from, to1] , [to1, to2] , [to2, to]
+     *                   true: [from , to1) , [to1, to2) , [to2, to]
+     *                   false: [from, to1] , [to1, to2] , [to2, to]
      */
     public void loopRange(Object toObj, DateField dateField, int step, BiConsumer<DateTimes, DateTimes> consumer, boolean closeRange) {
         DateTimes from = clone();
@@ -382,9 +413,9 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
                 break;
             } else {
                 if (closeRange) {
-                    consumer.accept(left, right.clone().addMillis(-1));
+                    consumer.accept(left.clone(), right.clone().addMillis(-1));
                 } else {
-                    consumer.accept(left, right);
+                    consumer.accept(left.clone(), right.clone());
                 }
             }
             left.add(dateField.getValue(), step);
