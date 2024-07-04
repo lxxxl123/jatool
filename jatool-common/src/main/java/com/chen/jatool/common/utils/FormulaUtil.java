@@ -5,6 +5,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -132,10 +133,10 @@ public class FormulaUtil {
             }
 
             BigDecimal parseLogicAnd() {
-                BigDecimal x = parseRelational();
+                BigDecimal x = parseRelational(null);
                 for (; ; ) {
                     if (eat('&') && eat('&')) {
-                        BigDecimal y = parseRelational();
+                        BigDecimal y = parseRelational(null);
                         x = new BigDecimal(x.compareTo(BigDecimal.ZERO) > 0 && y.compareTo(BigDecimal.ZERO) > 0 ? 1 : 0);
                     } else {
                         return x;
@@ -145,35 +146,52 @@ public class FormulaUtil {
 
             /**
              * 解析关系运算符
-             * 因关系运算符连续运算 ，因此无需使用循环 如： 1<=3<=5 不合法
+             * 现在已经支持连续关系运算 , 如 1<=2≤5
              */
-            BigDecimal parseRelational() {
-                BigDecimal x = parseExpression();
+            BigDecimal parseRelational(BigDecimal i) {
+                BigDecimal x;
+                if (i == null) {
+                    x = parseExpression();
+                } else {
+                    x = i;
+                }
+                BigDecimal y ;
                 boolean res;
                 if (eat('>')) {
                     if (eat('=')) {
-                        res = x.compareTo(parseExpression()) >= 0;
+                        y = parseExpression();
+                        res = x.compareTo(y) >= 0;
                     } else {
-                        res = x.compareTo(parseExpression()) > 0;
+                        y = parseExpression();
+                        res = x.compareTo(y) > 0;
                     }
                 } else if (eat('<')) {
                     if (eat('=')) {
-                        res = x.compareTo(parseExpression()) <= 0;
+                        y = parseExpression();
+                        res = x.compareTo(y) <= 0;
                     } else {
-                        res = x.compareTo(parseExpression()) < 0;
+                        y = parseExpression();
+                        res = x.compareTo(y) < 0;
                     }
                 } else if (eat('≤')) {
-                    res = x.compareTo(parseExpression()) <= 0;
+                    y = parseExpression();
+                    res = x.compareTo(y) <= 0;
                 } else if (eat('≥')) {
-                    res = x.compareTo(parseExpression()) >= 0;
+                    y = parseExpression();
+                    res = x.compareTo(y) >= 0;
                 } else if (eat('=') && eat('=')) {
-                    res = x.compareTo(parseExpression()) == 0;
+                    y = parseExpression();
+                    res = x.compareTo(y) == 0;
                 } else if (eat('!') && eat('=')) {
-                    res = x.compareTo(parseExpression()) != 0;
+                    y = parseExpression();
+                    res = x.compareTo(y) != 0;
                 } else {
+                    if (i != null) {
+                        return BigDecimal.ONE;
+                    }
                     return x;
                 }
-                return res ? BigDecimal.ONE : BigDecimal.ZERO;
+                return res && parseRelational(y).equals(BigDecimal.ONE) ? BigDecimal.ONE : BigDecimal.ZERO;
             }
 
             BigDecimal parseExpression() {
@@ -264,6 +282,10 @@ public class FormulaUtil {
         //        System.out.println(eval("1 > 3 && 1 || 0 && 1? 2 : max(3,1>5 && 5 || 3?4:3*5+1,10)", null));
 //        System.out.println(eval("1 ? 0 ? 1:2 : 3 ? 4: 5", null));
 //        System.out.println(true ? false ? 1 : 2 : true ? 4 : 5);
-        System.out.println(eval("1!=1 ? 10%3 : 10%4", null));
+//        System.out.println(eval("1!=1 ? 10%3 : 10%4", null));
+        System.out.println(eval("1<n<=3", new HashMap<String, BigDecimal>() {{
+            put("n", new BigDecimal(4));
+        }}));
+
     }
 }
