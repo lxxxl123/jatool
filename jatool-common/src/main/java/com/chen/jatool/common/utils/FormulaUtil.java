@@ -76,12 +76,21 @@ public class FormulaUtil {
 
             boolean eat(int charToEat) {
                 while (ch == SPACE) nextChar();
-                if (ch == charToEat) {
-                    nextChar();
-                    return true;
-                }
-                return false;
+                if (ch != charToEat) return false;
+                nextChar();
+                return true;
             }
+
+            boolean eat(String str) {
+                while (ch == SPACE) nextChar();
+                for (int i = 0; i < str.length(); i++) {
+                    if (ch == str.charAt(i)) nextChar();
+                    else if (i == 0) return false;
+                    else throw new RuntimeException("Unexpected: " + str.substring(0, i));
+                }
+                return true;
+            }
+
 
             BigDecimal parse() {
                 nextChar();
@@ -155,7 +164,7 @@ public class FormulaUtil {
                 } else {
                     x = i;
                 }
-                BigDecimal y ;
+                BigDecimal y;
                 boolean res;
                 if (eat('>')) {
                     if (eat('=')) {
@@ -179,10 +188,10 @@ public class FormulaUtil {
                 } else if (eat('≥')) {
                     y = parseExpression();
                     res = x.compareTo(y) >= 0;
-                } else if (eat('=') && eat('=')) {
+                } else if (eat("==")) {
                     y = parseExpression();
                     res = x.compareTo(y) == 0;
-                } else if (eat('!') && eat('=')) {
+                } else if (eat("!=")) {
                     y = parseExpression();
                     res = x.compareTo(y) != 0;
                 } else {
@@ -191,7 +200,7 @@ public class FormulaUtil {
                     }
                     return x;
                 }
-                return res && parseRelational(y).equals(BigDecimal.ONE) ? BigDecimal.ONE : BigDecimal.ZERO;
+                return parseRelational(y).equals(BigDecimal.ONE) && res ? BigDecimal.ONE : BigDecimal.ZERO;
             }
 
             BigDecimal parseExpression() {
@@ -283,8 +292,8 @@ public class FormulaUtil {
 //        System.out.println(eval("1 ? 0 ? 1:2 : 3 ? 4: 5", null));
 //        System.out.println(true ? false ? 1 : 2 : true ? 4 : 5);
 //        System.out.println(eval("1!=1 ? 10%3 : 10%4", null));
-        System.out.println(eval("1<n<=3", new HashMap<String, BigDecimal>() {{
-            put("n", new BigDecimal(4));
+        System.out.println(eval("1<n<=3<4", new HashMap<String, BigDecimal>() {{
+            put("n", new BigDecimal(2));
         }}));
 
     }
