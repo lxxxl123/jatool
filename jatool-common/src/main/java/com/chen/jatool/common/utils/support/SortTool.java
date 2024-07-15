@@ -1,9 +1,11 @@
 package com.chen.jatool.common.utils.support;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.lang.func.Func1;
 import cn.hutool.core.lang.func.LambdaUtil;
+import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.utils.ObjectUtil;
 import org.apache.commons.collections4.comparators.FixedOrderComparator;
 
@@ -11,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -30,6 +33,8 @@ public class SortTool<T> {
 
         private Object exVal;
 
+        private Function<T,?> currentFunc;
+
         private ComparatorHolder() {
         }
 
@@ -38,6 +43,16 @@ public class SortTool<T> {
             buildLastComparator();
             currentComparator = comparator;
             currentKey = key;
+            sortClass = null;
+            currentFunc = null;
+        }
+
+        public void add(Function<T, ?> func, Comparator comparator, Class<? extends Comparable> clazz) {
+            buildLastComparator();
+            currentComparator = comparator;
+            currentKey = null;
+            sortClass = clazz;
+            currentFunc = func;
         }
 
         public ComparatorHolder desc(){
@@ -79,19 +94,28 @@ public class SortTool<T> {
             if (currentComparator != null) {
                 final Comparator<Object> lastComparator = currentComparator;
                 final String key = currentKey;
-                final Class<?> currentClass = sortClass;
+                final Class<? extends Comparable> currentClass = sortClass;
                 final Object currentExVal = exVal;
-                Comparator<Object> comparing;
+                Function<Object, ? extends Comparable> sortFunc;
+                Function<Object , Object> getVal ;
+                if (key == null) {
+                    getVal = (Function) currentFunc;
+                } else {
+                    getVal = e -> ObjectUtil.get(e, key);
+                }
                 if (currentClass != null) {
-                    if (Numbers.class.equals(currentClass)) {
-                        comparing = Comparator.comparing(e -> Numbers.of(ObjectUtil.get(e, key), currentExVal), lastComparator);
+                    if (String.class.equals(currentClass)) {
+                        sortFunc = e -> StrUtil.toStringOrNull(getVal.apply(e));
+                    } if (Numbers.class.equals(currentClass)) {
+                        sortFunc = e -> Numbers.of(getVal.apply(e), currentExVal);
                     } else {
-                        comparing = Comparator.comparing(e -> Convert.convert(currentClass, ObjectUtil.get(e, key), currentExVal), lastComparator);
+                        sortFunc = e -> (Comparable) Convert.convert(currentClass, getVal.apply(e), currentExVal);
                     }
                 } else {
-                    comparing = Comparator.comparing(e -> tryConvertComparable(ObjectUtil.get(e, key)), lastComparator);
+                    sortFunc = e -> tryConvertComparable(getVal.apply(e));
                 }
-                comparators.add(comparing);
+
+                comparators.add(Comparator.comparing(sortFunc, lastComparator));
             }
             this.sortClass = null;
             this.exVal = null;
@@ -110,6 +134,14 @@ public class SortTool<T> {
         }
         public ComparatorHolder sortByKey(String key, Comparator comparator) {
             return SortTool.this.sortByKey(key, comparator);
+        }
+
+        public ComparatorHolder sortWithFuncAsStr(Function<T, ?> comparator) {
+            return SortTool.this.sortWithFuncAsStr(comparator);
+        }
+
+        public ComparatorHolder sortWithFunc(Function<T, ?> comparator) {
+            return SortTool.this.sortWithFunc(comparator);
         }
 
 
@@ -152,6 +184,16 @@ public class SortTool<T> {
 
     public ComparatorHolder sortByKey(Func1<T, ?> func1) {
         comparatorHolder.add(LambdaUtil.getFieldName(func1), Comparator.naturalOrder());
+        return comparatorHolder;
+    }
+
+    public ComparatorHolder sortWithFuncAsStr(Function<T, ?> func1){
+        comparatorHolder.add(func1, Comparator.naturalOrder(), String.class);
+        return comparatorHolder;
+    }
+
+    public ComparatorHolder sortWithFunc(Function<T, ?> func1){
+        comparatorHolder.add(func1, Comparator.naturalOrder(), null);
         return comparatorHolder;
     }
 
@@ -202,10 +244,18 @@ public class SortTool<T> {
         }
 
         list = SortTool.of(list)
+                .sortWithFuncAsStr(e -> e.get("b").toString().substring(1)).sortAsNum()
                 .sortByKey("a").sortAsNum().nullLast().desc()
                 .sortByKey("b")
                 .sort();
-        System.out.println(list);
+        list.forEach(e -> {
+            System.out.println(e);
+        });
+
+        System.out.println(SortTool.of(ListUtil.of("a1", "c5", "d2"))
+                .sortWithFuncAsStr(e -> e.substring(1))
+                .sort()
+        );
 
     }
 
