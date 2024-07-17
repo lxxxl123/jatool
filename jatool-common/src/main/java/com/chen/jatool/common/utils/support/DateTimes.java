@@ -313,8 +313,18 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return setField(DateField.DAY_OF_MONTH, value);
     }
 
+    /**
+     * 0 表示1月，11表示12月
+     */
     public DateTimes setMonth(int value) {
         return setField(DateField.MONTH, value);
+    }
+
+    /**
+     * 1 表示1月，12表示12月
+     */
+    public DateTimes setMonthLiteral(int value) {
+        return setField(DateField.MONTH, value - 1);
     }
 
     public DateTimes setYear(int value) {
