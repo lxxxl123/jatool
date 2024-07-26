@@ -5,9 +5,12 @@ import cn.hutool.core.date.*;
 import cn.hutool.core.date.format.FastDateFormat;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
-import lombok.Getter;
 import org.apache.commons.lang3.time.DateUtils;
 
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.temporal.TemporalAccessor;
 import java.util.*;
 import java.util.function.BiConsumer;
@@ -28,7 +31,6 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     /**
      * note! calendar is a mutable obj
      */
-    @Getter
     private Calendar calendar;
 
     public static DateTimes now() {
@@ -43,6 +45,13 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         } else if (o instanceof DateTimes) {
             dateTimes.calendar = (Calendar) ((DateTimes) o).getCalendar().clone();
             return dateTimes;
+        } else if (o instanceof Number) {
+            // build with millis from epoch
+            dateTimes.calendar = CalendarUtil.calendar(((Number) o).longValue());
+            return dateTimes;
+        } else if (o instanceof TemporalAccessor) {
+            dateTimes.calendar = CalendarUtil.calendar(TemporalAccessorUtil.toInstant((TemporalAccessor) o).toEpochMilli());
+            return dateTimes;
         } else if (o == null || "".equals(o)) {
             throw new ServiceException("DateTimes can not be blank");
         } else {
@@ -50,6 +59,8 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
             return dateTimes;
         }
     }
+
+
 
     private DateTimes() {
     }
@@ -126,6 +137,19 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     }
 
     /**
+     * 2023-04-05 12:34:56 -> 2023-01-01 00:00:00
+     */
+    public DateTimes truncateYear() {
+        return truncate(Calendar.YEAR);
+    }
+    /**
+     * 2023-04-05 12:34:56 -> 2023-04-01 00:00:00
+     */
+    public DateTimes truncateMonth() {
+        return truncate(Calendar.MONTH);
+    }
+
+    /**
      * 2023-04-05 12:34:56 -> 2023-04-05 00:00:00
      */
     public DateTimes truncateDate() {
@@ -144,19 +168,7 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return truncate(Calendar.SECOND);
     }
 
-    /**
-     * 2023-04-05 12:34:56 -> 2023-04-01 00:00:00
-     */
-    public DateTimes truncateMonth() {
-        return truncate(Calendar.MONTH);
-    }
 
-    /**
-     * 2023-04-05 12:34:56 -> 2023-01-01 00:00:00
-     */
-    public DateTimes truncateYear() {
-        return truncate(Calendar.YEAR);
-    }
 
     public String format(String pattern) {
         return FastDateFormat.getInstance(pattern).format(getCalendar());
@@ -253,8 +265,38 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return endOf(Calendar.DATE);
     }
 
+    public DateTimes endOfHour() {
+        return endOf(Calendar.HOUR);
+    }
+    public DateTimes endOfMinute() {
+        return endOf(Calendar.MINUTE);
+    }
+    public DateTimes endOfSecond() {
+        return endOf(Calendar.SECOND);
+    }
+
     public Date getDate() {
         return calendar.getTime();
+    }
+
+    public Calendar getCalendar() {
+        return calendar;
+    }
+
+    public LocalDate getLocalDate() {
+        return LocalDate.of(getYear(), getMonthLiteral(), getDayOfMonth());
+    }
+
+    public LocalTime getLocalTime() {
+        return LocalTime.of(getHour(), getMinute(), getSecond(), getMillis() * 1_000_000);
+    }
+
+    public Instant getInstant() {
+        return getCalendar().toInstant();
+    }
+
+    public LocalDateTime getLocalDateTime() {
+        return LocalDateTime.of(getLocalDate(), getLocalTime());
     }
 
 
@@ -271,30 +313,27 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return add(Calendar.YEAR, amount);
     }
 
-    public DateTimes addHour(int amount) {
-        return add(Calendar.HOUR, amount);
+    public DateTimes addMonths(int amount) {
+        return add(Calendar.MONTH, amount);
     }
 
+    public DateTimes addDays(int amount) {
+        return add(Calendar.DATE, amount);
+    }
+    public DateTimes addHours(int amount) {
+        return add(Calendar.HOUR, amount);
+    }
     public DateTimes addMinutes(int amount) {
         return add(Calendar.MINUTE, amount);
     }
-
     public DateTimes addSeconds(int amount) {
         return add(Calendar.SECOND, amount);
     }
-
     public DateTimes addMillis(int amount) {
         return add(Calendar.MILLISECOND, amount);
     }
 
 
-    public DateTimes addDays(int amount) {
-        return add(Calendar.DATE, amount);
-    }
-
-    public DateTimes addMonths(int amount) {
-        return add(Calendar.MONTH, amount);
-    }
 
     public int getField(DateField field) {
         return getCalendar().get(field.getValue());
@@ -305,36 +344,58 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return this;
     }
 
-    public DateTimes setHour(int value) {
-        return setField(DateField.HOUR_OF_DAY, value);
-    }
 
-    public DateTimes setDayOfMonth(int value) {
-        return setField(DateField.DAY_OF_MONTH, value);
+    public DateTimes setYear(int value) {
+        return setField(DateField.YEAR, value);
     }
-
     /**
      * 0 表示1月，11表示12月
      */
     public DateTimes setMonth(int value) {
         return setField(DateField.MONTH, value);
     }
-
     /**
      * 1 表示1月，12表示12月
      */
     public DateTimes setMonthLiteral(int value) {
         return setField(DateField.MONTH, value - 1);
     }
-
-    public DateTimes setYear(int value) {
-        return setField(DateField.YEAR, value);
+    public DateTimes setDayOfMonth(int value) {
+        return setField(DateField.DAY_OF_MONTH, value);
+    }
+    public DateTimes setHour(int value) {
+        return setField(DateField.HOUR_OF_DAY, value);
+    }
+    public DateTimes setMinute(int value) {
+        return setField(DateField.MINUTE, value);
+    }
+    public DateTimes setSecond(int value) {
+        return setField(DateField.SECOND, value);
+    }
+    public DateTimes setMillis(int value) {
+        return setField(DateField.MILLISECOND, value);
     }
 
-    public int getDayOfMonth() {
-        return getField(DateField.DAY_OF_MONTH);
+    public DateTimes setSecondOfDay(int value) {
+        return setHour(0).setMinute(0).setSecond(value);
     }
 
+    public DateTimes setLocalTime(LocalTime date) {
+        return setHour(date.getHour())
+                .setMinute(date.getMinute())
+                .setSecond(date.getSecond())
+                .setMillis(date.getNano() / 1_000_000);
+    }
+
+    public int getYear() {
+        return getField(DateField.YEAR);
+    }
+    public int getMonth() {
+        return getField(DateField.MONTH);
+    }
+    public int getMonthLiteral() {
+        return getField(DateField.MONTH) + 1;
+    }
     /**
      * 1 表示周一，7表示周日； Calendar中 1代表周日，2表示周一
      *
@@ -342,22 +403,34 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     public int getDayOfWeek() {
         return (getField(DateField.DAY_OF_WEEK) + 5) % 7 + 1;
     }
-
-    public int getYear() {
-        return getField(DateField.YEAR);
+    public int getDayOfMonth() {
+        return getField(DateField.DAY_OF_MONTH);
+    }
+    public int getHour() {
+        return getField(DateField.HOUR_OF_DAY);
+    }
+    public int getMinute(){
+        return getField(DateField.MINUTE);
+    }
+    public int getSecond(){
+        return getField(DateField.SECOND);
+    }
+    public int getMillis(){
+        return getField(DateField.MILLISECOND);
+    }
+    public int getSecondOfDay(){
+        return getHour() * 3600 + getMinute() * 60 + getSecond();
     }
 
+    /**
+     * epoch, get the milliseconds since 1970-01-01 00:00:00 UTC
+     */
+    public long getEpochMillis() {
+        return getCalendar().getTimeInMillis();
+    }
 
     public DateTimes clone() {
         return of(this);
-    }
-
-    public boolean before(DateTimes dateTimes) {
-        return compareTo(dateTimes) < 0;
-    }
-
-    public boolean beforeOrEquals(DateTimes dateTimes) {
-        return compareTo(dateTimes) <= 0;
     }
 
     @Override
@@ -368,14 +441,25 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     public boolean after(DateTimes dateTimes) {
         return compareTo(dateTimes) > 0;
     }
+    public boolean after(LocalTime time) {
+        return getSecondOfDay() > time.toSecondOfDay();
+    }
 
     public boolean afterOrEquals(DateTimes dateTimes) {
         return compareTo(dateTimes) >= 0;
     }
 
-    public long getTimeInMillis() {
-        return getCalendar().getTimeInMillis();
+    public boolean before(DateTimes dateTimes) {
+        return compareTo(dateTimes) < 0;
     }
+    public boolean before(LocalTime time) {
+        return getSecondOfDay() < time.toSecondOfDay();
+    }
+    public boolean beforeOrEquals(DateTimes dateTimes) {
+        return compareTo(dateTimes) <= 0;
+    }
+
+
 
     public void loop(Object toObj, DateField dateField, int step, Consumer<DateTimes> consumer) {
         DateTimes from = clone();
@@ -454,5 +538,80 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         }
         return getCalendar().compareTo(o.getCalendar());
     }
+
+    /*
+     * 假期记录
+     */
+    private static Set<LocalDate> globalHolidaySet;
+
+    private static ThreadLocal<Set<LocalDate>> localHolidaySet = ThreadLocal.withInitial(() -> null);
+    private Set<LocalDate> holidaySet;
+
+    public static void setGlobalHoliday(Set<LocalDate> set) {
+        globalHolidaySet = set;
+    }
+    public static void setLocalHoliday(Set<LocalDate> set) {
+        localHolidaySet.set(set);
+    }
+
+    public static void clearLocalVars() {
+        localHolidaySet.remove();
+    }
+
+    public DateTimes setHoliday(Set<LocalDate> set) {
+        holidaySet = set;
+        return this;
+    }
+
+    private Set<LocalDate> getHolidaySet(){
+        if (holidaySet != null) {
+            return holidaySet;
+        }
+        Set<LocalDate> localDates = localHolidaySet.get();
+        if (localDates != null) {
+            // 避免重复查询线程hash表
+            holidaySet = localDates;
+            return holidaySet;
+        }
+        if (globalHolidaySet != null) {
+            holidaySet = globalHolidaySet;
+            return holidaySet;
+        }
+        return Collections.emptySet();
+    }
+
+    public boolean isHoliday() {
+        return getHolidaySet().contains(getLocalDate());
+    }
+
+    public boolean isWorkDay() {
+        return !isHoliday();
+    }
+
+    public DateTimes addWorkDay(int amount) {
+        int x = amount > 0 ? 1 : -1;
+        while (amount != 0) {
+            addDays(x);
+            if (isWorkDay()) {
+                amount -= x;
+            }
+        }
+        return this;
+    }
+
+    public DateTimes addWorkDay(double amount) {
+        addWorkDay((int) amount);
+        int x = amount > 0 ? 1 : -1;
+        amount %= 1;
+        if (amount != 0) {
+            addSeconds((int) (amount * 24 * 60 * 60));
+            while (isHoliday()) {
+                addDays(x);
+            }
+        }
+        return this;
+    }
+
+
 
 }
