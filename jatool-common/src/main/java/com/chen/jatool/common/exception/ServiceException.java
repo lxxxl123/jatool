@@ -18,6 +18,11 @@ public class ServiceException extends RuntimeException {
     @Getter
     private final IResultCode resultCode;
 
+    public ServiceException(Throwable e) {
+        super(e);
+        this.resultCode = ResultCode.FAILURE;
+    }
+
     public ServiceException(String message) {
         super(StrUtil.format(message));
         this.resultCode = ResultCode.FAILURE;

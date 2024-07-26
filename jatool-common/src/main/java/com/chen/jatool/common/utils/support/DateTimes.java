@@ -589,11 +589,11 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     }
 
     public DateTimes addWorkDay(int amount) {
-        int x = amount > 0 ? 1 : -1;
+        int one = amount > 0 ? 1 : -1;
         while (amount != 0) {
-            addDays(x);
+            addDays(one);
             if (isWorkDay()) {
-                amount -= x;
+                amount -= one;
             }
         }
         return this;
@@ -601,12 +601,12 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
 
     public DateTimes addWorkDay(double amount) {
         addWorkDay((int) amount);
-        int x = amount > 0 ? 1 : -1;
+        int one = amount > 0 ? 1 : -1;
         amount %= 1;
         if (amount != 0) {
             addSeconds((int) (amount * 24 * 60 * 60));
             while (isHoliday()) {
-                addDays(x);
+                addDays(one);
             }
         }
         return this;
