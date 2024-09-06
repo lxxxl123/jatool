@@ -148,6 +148,7 @@ public class FormulaCalculator {
                 }
             }
         } finally {
+            ex = null;
             if (mainEx != null) {
                 ex = mainEx;
             } else if (useY && leftEx != null) {

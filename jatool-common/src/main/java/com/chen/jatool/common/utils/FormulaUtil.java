@@ -28,14 +28,15 @@ public class FormulaUtil {
 //        System.out.println(eval("1<n<=3<4?3:5", new HashMap<String, BigDecimal>() {{ put("n", new BigDecimal(2)); }}));
         HashMap<String, BigDecimal> paramMap = new HashMap<>();
         long start = System.currentTimeMillis();
-        for (int i = 1; i < 1_000; i++) {
+        for (int i = 1; i < 1_000_000; i++) {
             paramMap.put("n", new BigDecimal(i));
 //            BigDecimal res = FormulaCalculator.of("1<n<=3?100*n+200:n>4?200*n+10:0").parse(paramMap);
+            BigDecimal res = FormulaCalculator.of("n>0?1/n:1/0").parse(paramMap);
 //            System.out.println("n=" + i + ", res=" + res);
         }
         System.out.println("cost=" + (System.currentTimeMillis() - start));
-        paramMap.put("n", BigDecimal.valueOf(1));
-        System.out.println(eval("n>1?(n+1)/(n-1):n==1?12:0", paramMap));
+//        paramMap.put("n", BigDecimal.valueOf(1));
+//        System.out.println(eval("n>1?(n+1)/(n-1):n==1?12:0", paramMap));
 
     }
 }
