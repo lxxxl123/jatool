@@ -1,13 +1,15 @@
-//package com.chen.jatool.common.utils.support;
+//package com.haday.qms.core.tool.support;
 //
 //import cn.hutool.core.collection.CollUtil;
 //import cn.hutool.core.exceptions.ExceptionUtil;
+//import cn.hutool.core.lang.func.Func1;
 //import cn.hutool.core.util.StrUtil;
 //import com.baomidou.mybatisplus.core.metadata.OrderItem;
 //import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-//import com.chen.jatool.common.utils.support.string.SqlServerFinder;
 //import com.haday.qms.core.log.exception.ServiceException;
+//import com.haday.qms.core.tool.support.lambda.Func2;
 //import com.haday.qms.core.tool.utils.JdbcTemplateUtils;
+//import com.haday.qms.core.tool.utils.LambdaUtils;
 //import com.haday.qms.core.tool.utils.SqlUtil;
 //import com.haday.qms.vo.PageVo;
 //import lombok.extern.slf4j.Slf4j;
@@ -37,6 +39,32 @@
 //        return new JdbcTool(mapper);
 //    }
 //
+//    public static <T, R> JdbcTool ofFunc(Func1<T, R> func1) {
+//        Object mapper = LambdaUtils.getSpringBean(func1);
+//        String methodName = LambdaUtils.getMethodName(func1);
+//        JdbcTool jdbcTool = new JdbcTool(mapper);
+//        jdbcTool.methodName(methodName);
+//        return jdbcTool;
+//    }
+//
+//    public static <T, F, R> JdbcTool ofFunc2(Func2<T, F, R> func1) {
+//        Object mapper = LambdaUtils.getSpringBean(func1);
+//        String methodName = LambdaUtils.getMethodName(func1);
+//        JdbcTool jdbcTool = new JdbcTool(mapper);
+//        jdbcTool.methodName(methodName);
+//        return jdbcTool;
+//    }
+//
+//    public <T, R> JdbcTool countMethod(Func1<T, R> func1) {
+//        this.countMethodName = LambdaUtils.getMethodName(func1);
+//        return this;
+//    }
+//
+//    public <T, F, R> JdbcTool countMethod2(Func2<T, F, R> func1) {
+//        this.countMethodName = LambdaUtils.getMethodName(func1);
+//        return this;
+//    }
+//
 //    public JdbcTool countMethodName(String countMethodName) {
 //        this.countMethodName = countMethodName;
 //        return this;
@@ -60,6 +88,9 @@
 //    private String getSql(String methodName) {
 //        if (StrUtil.isBlank(methodName)) {
 //            methodName = this.methodName;
+//        }
+//        if (StrUtil.isBlank(methodName)) {
+//            throw new ServiceException("未指定方法");
 //        }
 //        if (StrUtil.isNotBlank(sql) && StrUtil.equals(this.methodName, this.countMethodName)) {
 //            return sql;
@@ -118,11 +149,12 @@
 //            List res = (List) executeSqlForList(selectSql, clazz);
 //            page.setRecords(res);
 //            if (page.isSearchCount()) {
-//                if (res.size() < page.getSize() && page.getCurrent() == 1) {
-//                    page.setTotal(res.size());
-//                } else {
-//                    page.setTotal(getCount());
-//                }
+////                if (res.size() < page.getSize() && page.getCurrent() == 1) {
+////                    page.setTotal(res.size());
+////                } else {
+////                    page.setTotal(getCount());
+////                }
+//                page.setTotal(getCount());
 //            }
 //
 //            return (PageVo) page;
