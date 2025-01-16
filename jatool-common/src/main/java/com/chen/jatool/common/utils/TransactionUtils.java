@@ -1,10 +1,11 @@
-package com.chen.jatool.common.utils;
+package com.haday.qms.core.tool.utils;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.function.Supplier;
@@ -37,18 +38,23 @@ public class TransactionUtils {
     /**
      * 一般用于在事务中挂起原来的事务并切换数据源，因事务中无法切换数据源
      */
-    public static  <T> T executeWithoutTransaction(Supplier<T> supplier) {
+    public static  <T> T executeWithoutTrans(Supplier<T> supplier) {
+        return executeTrans(supplier, TransactionDefinition.PROPAGATION_NOT_SUPPORTED);
+    }
+
+    public static  <T> T executeInNewTrans(Supplier<T> supplier) {
+        return executeTrans(supplier, TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+    }
+
+    public static <T> T executeTrans(Supplier<T> supplier, int propagation) {
         TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_NOT_SUPPORTED);
+        transactionTemplate.setPropagationBehavior(propagation);
         return transactionTemplate.execute(status -> supplier.get());
     }
 
-    /**
-     *
-     */
-    public static  <T> T execute(Supplier<T> supplier) {
-        TransactionTemplate transactionTemplate = new TransactionTemplate(transactionManager);
-        transactionTemplate.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRED);
-        return transactionTemplate.execute(status -> supplier.get());
+    public static boolean isInTrans(){
+        return TransactionSynchronizationManager.isActualTransactionActive();
     }
+
+
 }

@@ -1,6 +1,7 @@
 package com.chen.jatool.common.utils.support.string;
 
 import cn.hutool.core.util.StrUtil;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -10,12 +11,13 @@ import java.util.LinkedHashSet;
  * @author chenwh3
  */
 public class MessageBuilder {
-    private String title;
+    private String title = "";
 
     private Collection<String> list = new ArrayList<>();
 
+    @Setter
     private String separator = "";
-    private String tail;
+    private String tail = "";
 
     private boolean distinct = false;
 
@@ -44,7 +46,7 @@ public class MessageBuilder {
         this.tail = tail;
     }
 
-    public MessageBuilder(String title, String separator , String tail) {
+    public MessageBuilder(String title,String separator , String tail) {
         this.title = title;
         this.tail = tail;
         this.separator = separator;

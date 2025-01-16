@@ -1,11 +1,13 @@
 package com.chen.jatool.common.utils.support;
 
-import cn.hutool.core.convert.Convert;
 import cn.hutool.core.date.*;
 import cn.hutool.core.date.format.FastDateFormat;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
+import com.chen.jatool.common.utils.ObjectUtil;
 import org.apache.commons.lang3.time.DateUtils;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -26,6 +28,8 @@ import java.util.regex.Pattern;
 public class DateTimes implements Comparable<DateTimes>, Cloneable {
 
     public static final FastDateFormat DOT_DATE_FORMAT = FastDateFormat.getInstance("yyyy.MM.dd");
+
+    public static final FastDateFormat SLASH_DATE_FORMAT = FastDateFormat.getInstance("yyyy/MM/dd");
     public static final FastDateFormat DOT_DATETIME_FORMAT = FastDateFormat.getInstance("yyyy.MM.dd HH:mm:ss");
 
     /**
@@ -77,7 +81,7 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     }
 
     public static DateTimes ofEx(Object o) {
-        if (o == null || "".equals(o)) {
+        if (o == null || ObjectUtil.isBlank(o)) {
             return null;
         }
         try {
@@ -104,6 +108,9 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     private static final Pattern DATE_PATTERN = Pattern.compile("(\\d{4})[.-/](\\d{1,2})[.-/](\\d{1,2})");
 
     public static Date parse(Object obj) {
+        if (obj == null) {
+            throw new IllegalArgumentException("DateTimes can not be blank");
+        }
         try {
             Matcher mat;
             if (obj instanceof Date) {
@@ -124,9 +131,9 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
             } else if (obj instanceof Number) {
                 return new Date(((Number) obj).longValue());
             }
-            return Optional.of(Convert.toDate(obj)).orElseThrow(IllegalArgumentException::new);
+            throw new IllegalArgumentException("unknown type class = " + obj.getClass().getName());
         } catch (Exception e) {
-            throw new ServiceException("incorrect date format. input parameter = [{}]", obj);
+            throw new ServiceException("incorrect date format. input parameter = [{}]", obj).causeBy(e);
         }
     }
 
@@ -179,6 +186,13 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
      */
     public String formatDate() {
         return DatePattern.NORM_DATE_FORMAT.format(getCalendar());
+    }
+    public String formatChDate(){
+        return DatePattern.CHINESE_DATE_FORMAT.format(getCalendar());
+    }
+
+    public String formatSlashDate() {
+        return SLASH_DATE_FORMAT.format(getCalendar());
     }
 
     /**
@@ -237,6 +251,16 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
 
     public String formatDateTimeMs() {
         return DatePattern.NORM_DATETIME_MS_FORMAT.format(getDate());
+    }
+
+    /**
+     * 对于datetime类型数据库会把998ms以上数据进位
+     */
+    public DateTimes fixDatabaseMs(){
+        if (getMillis() > 997) {
+            return setMillis(997);
+        }
+        return this;
     }
 
     public DateTimes endOf(int field) {
@@ -406,6 +430,10 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     public int getDayOfMonth() {
         return getField(DateField.DAY_OF_MONTH);
     }
+
+    public int getDayOfYear() {
+        return getField(DateField.DAY_OF_YEAR);
+    }
     public int getHour() {
         return getField(DateField.HOUR_OF_DAY);
     }
@@ -436,6 +464,10 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     @Override
     public boolean equals(Object dateTimes) {
         return dateTimes instanceof DateTimes && (((DateTimes) dateTimes).getCalendar()).equals(getCalendar());
+    }
+
+    public boolean eq(Object obj) {
+        return ObjectUtil.equal(DateTimes.of(obj).getEpochMillis(), getEpochMillis());
     }
 
     public boolean after(DateTimes dateTimes) {
@@ -477,6 +509,12 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
     public <U> List<U> loopFor(Object toObj, DateField dateField, int step, Function<DateTimes, U> function) {
         List<U> list = new ArrayList<>();
         loop(toObj, dateField, step, e -> list.add(function.apply(e)));
+        return list;
+    }
+
+    public List<Tuple2<DateTimes,DateTimes>> loopRangeList(Object toObj, DateField dateField, int step){
+        List<Tuple2<DateTimes,DateTimes>> list = new ArrayList<>();
+        loopRange(toObj, dateField, step, (left, right) -> list.add(Tuples.of(left, right)), true);
         return list;
     }
 
@@ -580,8 +618,12 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable {
         return Collections.emptySet();
     }
 
+    /**
+     * 空则只算周末
+     */
     public boolean isHoliday() {
-        return getHolidaySet().contains(getLocalDate());
+        Set<LocalDate> set = getHolidaySet();
+        return set.isEmpty() ? getDayOfWeek() >= 6 : set.contains(getLocalDate());
     }
 
     public boolean isWorkDay() {

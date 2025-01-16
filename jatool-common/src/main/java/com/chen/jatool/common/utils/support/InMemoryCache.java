@@ -14,9 +14,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 
 
 /**
+ *
  * @author chenwh3
  */
 @ToString
@@ -48,6 +50,11 @@ public class InMemoryCache<K,V> {
         if (cache.size() >= maxEntries) {
             sweep();
         }
+        // 不支持null值
+        if (value == null) {
+            remove(key);
+            return;
+        }
         cache.put(key, new CacheItem<>(value,  expirationTimeMillis));
     }
 
@@ -55,15 +62,29 @@ public class InMemoryCache<K,V> {
         put(key, value, defaultExpirationTimeMillis);
     }
 
-    public Object get(K key) {
-        CacheItem<V> item = cache.get(key);
-        if (item != null && item.isValid()) {
-            item.extend();
-            return item.getValue();
-        } else {
-            remove(key);
-            return null;
+    public  V computeIfAbsent(K key, Function<K, V> func, long timeout) {
+        V o = get(key);
+        if (o == null) {
+            o = func.apply(key);
+            if (o != null) {
+                put(key, o, timeout);
+            }
         }
+        return o;
+    }
+
+    public V get(K key) {
+        CacheItem<V> item = cache.get(key);
+        if (item != null) {
+            if (item.isValid()) {
+                item.extend();
+                return item.getValue();
+            } else {
+                remove(key);
+                return null;
+            }
+        }
+        return null;
     }
 
     public boolean containsKey(K key) {
@@ -90,8 +111,27 @@ public class InMemoryCache<K,V> {
         log.info("清理内存缓存完成 , 缓存数量 = {}", cache.size());
     }
 
-    public void remove(K key) {
-        cache.remove(key);
+    public CacheItem<V> remove(K key) {
+        CacheItem<V> remove = cache.remove(key);
+        if (remove != null) {
+            log.info("成功移除缓存 , key = {} , value = {}", key , remove.getValue());
+        } else {
+            log.info("缓存不存在 , key = {}", key);
+        }
+        return remove;
+    }
+
+    public void removePrefix(K prefix) {
+        List<K> keysToRemove = new ArrayList<>();
+        for (Map.Entry<K, CacheItem<V>> entry : cache.entrySet()) {
+            K key = entry.getKey();
+            if (key.toString().startsWith(prefix.toString())) {
+                keysToRemove.add(key);
+            }
+        }
+        for (K keyToRemove : keysToRemove) {
+            cache.remove(keyToRemove);
+        }
     }
 
     public Map<K, CacheItem<V>> peek(){

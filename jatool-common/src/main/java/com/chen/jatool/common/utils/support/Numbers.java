@@ -29,16 +29,14 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     private Numbers() {
     }
 
-    public static Numbers of(Object o, Object orElse) {
-        try {
-            return of(o);
-        } catch (Exception e) {
+    public static Numbers ofNull(Object o, Object orElse) {
+        if (ObjectUtil.isBlank(o)) {
             if (ObjectUtil.isBlank(orElse)) {
                 return null;
-            } else {
-                return of(orElse);
             }
+            return of(orElse);
         }
+        return of(o);
     }
 
 
@@ -53,14 +51,13 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return res.divide(nums.size(), scale);
     }
 
-    public static Numbers stdev(List nums) {
+    public static Numbers stdev(List nums){
         return stdev(nums, 16);
     }
 
     /**
      * 计算标准偏差（又称为-样品标准差）
      * 最大精度应该为15位左右 , 再大可能精度丢失 ， 由sqrt决定 ， 除非自行实现sqrt
-     *
      * @param scale 计算过程的精度，并非结果精度
      */
     public static Numbers stdev(List nums, int scale) {
@@ -133,10 +130,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     }
 
     public static Numbers ofNull(Object o) {
-        if (ObjectUtil.isBlank(o)) {
-            return new Numbers(BigDecimal.ZERO);
-        }
-        return of(o, BigDecimal.ZERO);
+        return ofNull(o, BigDecimal.ZERO);
     }
 
     @Override
@@ -149,7 +143,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return this;
     }
 
-    public static BigDecimal parseDecimal(Object obj) {
+    public static BigDecimal parseDecimal(Object obj){
         if (obj instanceof Numbers) {
             return ((Numbers) obj).getDecimal();
         } else if (obj instanceof BigDecimal) {
@@ -286,6 +280,7 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     public String format(String pattern) {
         return new DecimalFormat(pattern).format(decimal);
     }
+
 
 
 }

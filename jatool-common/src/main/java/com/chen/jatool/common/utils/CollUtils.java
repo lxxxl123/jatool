@@ -1,7 +1,10 @@
 package com.chen.jatool.common.utils;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.convert.Convert;
+import cn.hutool.core.lang.func.Func1;
+import cn.hutool.core.lang.func.LambdaUtil;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.support.string.MessageBuilder;
@@ -93,6 +96,11 @@ public class CollUtils {
         }
     }
 
+    public static <T> Stream<T> toStream(List<T>... list) {
+        return Arrays.stream(list).filter(Objects::nonNull)
+                .flatMap(Collection::stream);
+    }
+
     @Deprecated
     public static Collection<?> toColl(Object obj) {
         return toStream(obj).collect(Collectors.toList());
@@ -100,6 +108,25 @@ public class CollUtils {
 
     public static List<?> toList(Object obj) {
         return toStream(obj).collect(Collectors.toList());
+    }
+
+    /**
+     * 尽可能不改变原来的元素，减少性能损耗
+     */
+    public static Collection<?> tryToColl(Object o){
+        if (o == null) {
+            return new ArrayList<>();
+        }
+        if (o instanceof Collection) {
+            return (Collection<?>) o;
+        }
+        if (o instanceof Iterable) {
+            return ListUtil.toList((Iterable<?>) o);
+        }
+        if (o.getClass().isArray()) {
+            return Arrays.asList((Object[]) o);
+        }
+        return toList(o);
     }
 
     @Deprecated
@@ -162,6 +189,20 @@ public class CollUtils {
         return sum;
     }
 
+    public static <T, R> R maxCount(List<T> list, Function<T, R> matcher) {
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+        Map<R, Long> frequencyMap = list.stream()
+                .map(matcher)
+                .collect(Collectors.groupingBy(e -> e, Collectors.counting()));
+
+        return frequencyMap.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
     public static < T extends Comparable> T max(List<?> list, String key, Class<T> clazz) {
         if (list == null || list.isEmpty()) {
             return null;
@@ -207,6 +248,21 @@ public class CollUtils {
         return false;
     }
 
+    public static <T> void checkDuplicate(List<T> list, List<Func1<T, ?>> keyExtractors) {
+        List<String> fieldNames = keyExtractors.stream().map(LambdaUtil::getFieldName).collect(Collectors.toList());
+        List<Function<T, ?>> keysList = keyExtractors.stream().map(e -> {
+            Function<T, ?> r = t -> {
+                try {
+                    return e.call(t);
+                } catch (Exception ex) {
+                    throw new ServiceException(ex);
+                }
+            };
+            return r;
+        }).collect(Collectors.toList());
+
+        checkDuplicate(list, fieldNames, keysList);
+    }
 
     public static <T> void checkDuplicate(List<T> list, List<String> fieldNames, List<Function<T, ?>> keyExtractors) {
         MessageBuilder mb = new MessageBuilder("数据重复：</br>", "</br>", "");

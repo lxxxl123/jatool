@@ -4,30 +4,39 @@ import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
+import com.chen.jatool.common.utils.CollUtils;
 import com.chen.jatool.common.utils.support.Numbers;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
+import org.springframework.util.ObjectUtils;
 
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Stream;
+import java.util.*;
 
 /**
  * 对象工具类
  *
  * @author L.cm
  */
-public class ObjectUtil extends org.springframework.util.ObjectUtils {
+@Slf4j
+public class ObjectUtil {
 
     /**
      * 判断元素不为空
-     *
-     * @param obj object
-     * @return boolean
      */
     public static boolean isNotEmpty(@Nullable Object obj) {
-        return !ObjectUtil.isEmpty(obj);
+        return !isEmpty(obj);
+    }
+
+    public static boolean isEmpty(@Nullable Object obj) {
+        return ObjectUtils.isEmpty(obj);
+    }
+
+    public static boolean nullSafeEquals(@Nullable Object obj1, @Nullable Object obj2){
+        return ObjectUtils.nullSafeEquals(obj1, obj2);
+    }
+
+    public static boolean isArray(@Nullable Object obj) {
+        return ObjectUtils.isArray(obj);
     }
 
     public static boolean isNotBlank(@Nullable Object obj) {
@@ -82,29 +91,46 @@ public class ObjectUtil extends org.springframework.util.ObjectUtils {
         }
     }
 
-    public static Object merge(Object obj1, Object obj2) {
+    public static <R> R merge(R obj1, R obj2) {
         if (obj1 == null) {
             return obj2;
         }
         if (obj2 == null) {
             return obj1;
         }
-        if (obj1 instanceof Collection || obj2 instanceof Collection
-                || obj1 instanceof Stream || obj2 instanceof Stream
-                || obj1 instanceof Iterable || obj2 instanceof Iterable) {
-            return Convert.convert(obj1.getClass(), CollUtils.toList(obj1).addAll((Collection) CollUtils.toList(obj2)));
+        if (obj1 instanceof Collection && obj2 instanceof Collection) {
+            // 性能损失小点
+            Collection<?> l1 = CollUtils.tryToColl(obj1);
+            Collection<?> l2 = CollUtils.tryToColl(obj2);
+            try {
+                l1.addAll((Collection) l2);
+            } catch (UnsupportedOperationException e) {
+                log.warn("merge warning ", e);
+                if (l1 instanceof List) {
+                    l1 = CollUtils.toList(l1);
+                    l1.addAll((Collection) l2);
+                    return (R) l1;
+                } else if (l1 instanceof Set) {
+                    l1 = CollUtils.toSet(l1);
+                    l1.addAll((Collection) l2);
+                    return (R) new HashSet<>(l1);
+                } else {
+                    throw new ServiceException("no support");
+                }
+            }
+            return (R) Convert.convert(obj1.getClass(), l1);
         }
 
         if (obj1 instanceof Map && obj2 instanceof Map) {
             HashMap<Object, Object> map = new HashMap<>();
             map.putAll((Map) obj1);
             map.putAll((Map) obj2);
-            return map;
+            return (R) map;
         }
         if (obj1 instanceof Number && obj2 instanceof Number) {
-            return Convert.convert(obj1.getClass(), Numbers.of(obj1).add(obj2).getDecimal());
+            return (R) Convert.convert(obj1.getClass(), Numbers.of(obj1).add(obj2).getDecimal());
         }
-        throw new ServiceException("not support merge type between {} and {}", obj1.getClass(), obj2.getClass());
+        throw new ServiceException(StrUtil.format("not support merge type between {} and {}", obj1.getClass(), obj2.getClass()));
     }
 
 }
