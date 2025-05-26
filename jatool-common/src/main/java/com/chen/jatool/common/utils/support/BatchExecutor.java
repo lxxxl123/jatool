@@ -6,7 +6,6 @@ import cn.hutool.core.exceptions.ExceptionUtil;
 import com.chen.jatool.common.exception.BatchExecuteException;
 import com.chen.jatool.common.utils.CollUtils;
 import com.chen.jatool.common.utils.ObjectUtil;
-
 import com.chen.jatool.common.utils.ThreadUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.transaction.TransactionDefinition;
@@ -31,18 +30,17 @@ public class BatchExecutor<T> {
     private final Integer batchSize;
 
     /**
+     * 并且会开启重试，否则不会
      * 常用于插入事务
      */
-    private boolean nestedTrans = false;
+    private boolean useTrans = false;
     private int retry = 3;
 
     private int retryDiv = 5;
 
     private int maxErrorCount = 50;
 
-    private AtomicInteger errorCount = new AtomicInteger(0);
-
-    private final List<Class<? extends Exception>> noRollbackExs = new ArrayList<>();
+    private final AtomicInteger errorCount = new AtomicInteger(0);
 
     private final List<T> list;
 
@@ -51,10 +49,10 @@ public class BatchExecutor<T> {
     public BatchExecutor(List<T> list, Integer batchSize, boolean partTrans, int retry, int retryDiv, int maxErrorCount) {
         this.list = list;
         this.batchSize = batchSize;
-        this.nestedTrans = partTrans;
         this.retry = retry;
         this.retryDiv = retryDiv;
         this.maxErrorCount = maxErrorCount;
+        nestedTrans(partTrans);
     }
 
     public BatchExecutor(List<T> list, Integer batchSize) {
@@ -67,8 +65,24 @@ public class BatchExecutor<T> {
     }
 
 
-    public BatchExecutor<T> nestedTrans(boolean nestedTrans) {
-        this.nestedTrans = nestedTrans;
+    /**
+     * 若外层有事务,出错会全部回滚
+     * 若cacheError，回滚取决于外层事务最终是否出错，否则回滚部分
+     * 其他情况同newTrans
+     */
+    public BatchExecutor<T> nestedTrans(boolean bool) {
+        this.useTrans = bool;
+        trans.propagate(TransactionDefinition.PROPAGATION_NESTED);
+        return this;
+    }
+
+    /**
+     * 若外层有事务,出错只会回滚错误部分
+     * 但外层有事务建议使用-nestedTrans，因多个事务数据可能有冲突
+     */
+    public BatchExecutor<T> newTrans(boolean bool) {
+        this.useTrans = bool;
+        trans.propagate(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
         return this;
     }
 
@@ -185,22 +199,19 @@ public class BatchExecutor<T> {
         return res;
     }
 
+    private final Transactions trans = Transactions.of().propagate(TransactionDefinition.PROPAGATION_NESTED);
+
 
     private <R> R partExecute(List<T> part, Function<List<T>, R> func, int retry) {
-        Transactions trans = Transactions.of();
-        if (nestedTrans) {
-            trans = trans.propagate(TransactionDefinition.PROPAGATION_REQUIRES_NEW).begin();
-
-        }
         R res = null;
         try {
-            res = ObjectUtil.merge(func.apply(part), res);
-            trans.tryCommit();
-        } catch (Exception e) {
-            boolean skip = noRollbackExs.stream().anyMatch(ex -> ex.isInstance(e));
-            if (nestedTrans && !skip) {
-                trans.tryRollback();
+            if (useTrans) {
+                res = trans.get(() -> func.apply(part));
             } else {
+                res = func.apply(part);
+            }
+        } catch (Exception e) {
+            if (!useTrans) {
                 throw e;
             }
             /*不再重试*/
@@ -209,6 +220,7 @@ public class BatchExecutor<T> {
                 //避免字数太大
                 errMsg.add(e.getLocalizedMessage());
                 if (errorCount.incrementAndGet() >= maxErrorCount) {
+                    // 中断其他任务
                     throw (BatchExecuteException) new BatchExecuteException(errorList, errMsg).initCause(e);
                 }
                 log.error("", e);
@@ -229,7 +241,7 @@ public class BatchExecutor<T> {
     }
 
     public  BatchExecutor<T> noRollbackFor(Class<? extends Exception> ex) {
-        noRollbackExs.add(ex);
+        trans.noRollbackFor(ex);
         return this;
     }
 

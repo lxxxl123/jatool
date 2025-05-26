@@ -16,7 +16,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 @Slf4j
 public class ThreadUtils {
 
-    public static final Executor COMMON_EXECUTOR = build("common-executor", 4, 16, 100, 60);
+    public static final Executor COMMON_EXECUTOR = build("common-executor", 4, 16, 10, 60);
 
     /**
      * 可以把基本的线程信息复制到子线程中

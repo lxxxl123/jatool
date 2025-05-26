@@ -1,6 +1,7 @@
 package com.chen.jatool.common.interceptor.holder;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.util.IdUtil;
 import cn.hutool.core.util.StrUtil;
 import org.slf4j.MDC;
 
@@ -20,8 +21,21 @@ public class LoggerPrefixHolder {
     }
 
 
+    /**
+     * 不建议手动使用
+     */
     public static void push(String msg) {
         LOG_PREFIX_MSG.get().addLast(msg);
+        tryPushMdcPrefix();
+    }
+
+    public static void pushUUID() {
+        LOG_PREFIX_MSG.get().addLast(IdUtil.fastSimpleUUID());
+        tryPushMdcPrefix();
+    }
+
+    public static void pushUUID(int len) {
+        LOG_PREFIX_MSG.get().addLast(IdUtil.fastSimpleUUID().substring(0, len));
         tryPushMdcPrefix();
     }
 

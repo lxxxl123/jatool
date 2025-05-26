@@ -1,4 +1,4 @@
-package com.chen.jatool.common.utils.support;
+package com.chen.jatool.common.utils.support.sql;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.exceptions.ExceptionUtil;
