@@ -36,6 +36,11 @@ public class Transactions {
         timeout(60);
     }
 
+    public Transactions readOnly(boolean readOnly) {
+        def.setReadOnly(readOnly);
+        return this;
+    }
+
     /**
      * {@link TransactionDefinition#PROPAGATION_REQUIRED}
      * {@link TransactionDefinition#PROPAGATION_REQUIRES_NEW}

@@ -1,17 +1,21 @@
-package com.chen.jatool.common.utils.support;
+package com.chen.jatool.common.utils.support.sql;
 
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.date.DateField;
+import cn.hutool.core.lang.func.Func1;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.OrderItem;
-import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.chen.jatool.common.exception.ServiceException;
+import com.chen.jatool.common.modal.vo.PageVo;
+import com.chen.jatool.common.utils.BeanUtils;
 import com.chen.jatool.common.utils.CollUtils;
 import com.chen.jatool.common.utils.ObjectUtil;
 import com.chen.jatool.common.utils.SqlUtil;
+import com.chen.jatool.common.utils.support.DateTimes;
+import com.chen.jatool.common.utils.support.lambda.LambdaUtils;
 import lombok.Getter;
 import org.apache.commons.lang3.StringUtils;
 
@@ -25,10 +29,13 @@ import java.util.stream.Collectors;
  */
 public class PlainWrapper extends QueryWrapper<Object> {
 
-    public static final String CONDITION = "condition";
-    public static final String OR = " or ";
-    public static final String AND = " and ";
+    private static final String CONDITION = "condition";
+    private static final String OR = " or ";
+    private static final String AND = " and ";
     private final StringBuilder sqlSegment = new StringBuilder();
+
+    private final List<String> orderStatement = new ArrayList<>();
+
 
     @Getter
     private JSONObject entity;
@@ -47,7 +54,6 @@ public class PlainWrapper extends QueryWrapper<Object> {
     private void appendSqlSetmentAndCheck(String str) {
         SqlUtil.checkSql(str);
         this.sqlSegment.append(str);
-
     }
 
     @Override
@@ -61,10 +67,14 @@ public class PlainWrapper extends QueryWrapper<Object> {
     }
 
     public PlainWrapper put(String key, Object val) {
-        if (entity == null) {
-            entity = new JSONObject();
-        }
+        if (entity == null) { entity = new JSONObject(); }
         entity.put(key, val);
+        return this;
+    }
+
+    public PlainWrapper putIfAbsent(String key, Object val) {
+        if (entity == null) { entity = new JSONObject(); }
+        entity.putIfAbsent(key, val);
         return this;
     }
 
@@ -79,9 +89,21 @@ public class PlainWrapper extends QueryWrapper<Object> {
     }
 
 
+
+
     public static PlainWrapper of(Map<String, Object> map) {
         Object o = map.get(CONDITION);
+        List<ConditionVo> and = BeanUtils.arrayToBean((List) map.get("and"), ConditionVo.class);
+        List<ConditionVo> or = BeanUtils.arrayToBean((List) map.get("or"), ConditionVo.class);
+        List<ColumnMapVo> columnMap = BeanUtils.arrayToBean((List) map.get("columnMap"), ColumnMapVo.class);
+
         PlainWrapper wrapper = of(Convert.toStr(o, ""));
+        if (CollUtil.isNotEmpty(and)) {
+            wrapper.andThen(e -> SqlUtil.buildConsumer(and, e, false, columnMap));
+        }
+        if (CollUtil.isNotEmpty(or)) {
+            wrapper.andThen(e -> SqlUtil.buildConsumer(or, e, true, columnMap));
+        }
         wrapper.entity = new JSONObject(map);
         return wrapper;
     }
@@ -97,16 +119,24 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return plainWrapper;
     }
 
+    public PlainWrapper andThen(Consumer<PlainWrapper> consumer) {
+        return and(e -> consumer.accept((PlainWrapper) e));
+    }
+
+
     public PlainWrapper and(Consumer<QueryWrapper<Object>> consumer) {
         PlainWrapper wrapper = PlainWrapper.of();
         consumer.accept(wrapper);
         String sql = wrapper.getSqlSegment();
+        sql = StrUtil.removeSuffix(sql, AND);
+        sql = StrUtil.removeSuffix(sql, OR);
+        sql = StrUtil.removePrefix(sql, AND);
+        sql = StrUtil.removePrefix(sql, OR);
         if (StrUtil.isNotBlank(sql)) {
             addSql("(" + sql + ")");
         }
         return this;
     }
-
     public PlainWrapper or() {
         appendSqlSegment(OR);
         return this;
@@ -134,7 +164,7 @@ public class PlainWrapper extends QueryWrapper<Object> {
 
     private class CollValWrapper implements ValWrapper {
         private final Collection<?> coll;
-        public CollValWrapper(Object obj) { this.coll = CollUtils.toColl(obj); }
+        public CollValWrapper(Object obj) { this.coll = CollUtils.toList(obj); }
 
         @Override
         public String toString() {
@@ -208,14 +238,43 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return this;
     }
 
+
+    public <T> PlainWrapper eq(Func1<T, Object> func0, Object val) {
+        return eq(LambdaUtils.getFieldName(func0), val);
+    }
+
+    public PlainWrapper tryEq(String column, Object val) {
+        SqlUtil.tryEq(this, column, val);
+        return this;
+    }
+
+    public <T> PlainWrapper tryEq(Func1<T, Object> func0, Object val) {
+        return tryEq(LambdaUtils.getFieldName(func0), val);
+    }
+
     public PlainWrapper notEq(String column, Object val) {
         addSql("{} != {}", column, new StrValWrapper(val));
         return this;
+    }
+    public <T> PlainWrapper notEq(Func1<T, Object> func0, Object val) {
+        return notEq(LambdaUtils.getFieldName(func0), val);
     }
 
     @Override
     public PlainWrapper le(String column, Object val) {
         addSql("{} <= {}", column, new StrValWrapper(val));
+        return this;
+    }
+
+    @Override
+    public PlainWrapper lt(String column, Object val) {
+        addSql("{} < {}", column, new StrValWrapper(val));
+        return this;
+    }
+
+    @Override
+    public PlainWrapper gt(String column, Object val) {
+        addSql("{} > {}", column, new StrValWrapper(val));
         return this;
     }
 
@@ -226,13 +285,44 @@ public class PlainWrapper extends QueryWrapper<Object> {
     }
 
     @Override
+    public PlainWrapper ne(String column, Object val) {
+        addSql("{} != {}", column, new StrValWrapper(val));
+        return this;
+    }
+
+    @Override
     public PlainWrapper like(String column, Object val) {
         addSql("{} like {}", column, new StrValWrapper(val));
+        return this;
+    }
+    public <T> PlainWrapper like(Func1<T, Object> func0, Object val) {
+        return like(LambdaUtils.getFieldName(func0), val);
+    }
+    public PlainWrapper tryLike(String column, Object val) {
+        SqlUtil.tryLike(this, column, val);
         return this;
     }
 
     public PlainWrapper fuzzyLike(String column, Object val) {
         addSql("{} like {}", column, new StrValWrapper(val).setPrefix("%").setSuffix("%"));
+        return this;
+    }
+    public <T> PlainWrapper fuzzyLike(Func1<T, Object> func0, Object val) {
+        return fuzzyLike(LambdaUtils.getFieldName(func0), val);
+    }
+    public PlainWrapper tryFuzzyLike(String column, Object val) {
+        if(ObjectUtil.isNotBlank(val)){
+            fuzzyLike(column, val);
+        }
+        return this;
+    }
+    public <T> PlainWrapper tryFuzzyLike(Func1<T, Object> func0, Object val) {
+        return tryFuzzyLike(LambdaUtils.getFieldName(func0), val);
+    }
+
+    @Override
+    public QueryWrapper<Object> likeLeft(String column, Object val) {
+        addSql("{} like {}", column, new StrValWrapper(val).setPrefix("%"));
         return this;
     }
 
@@ -241,38 +331,63 @@ public class PlainWrapper extends QueryWrapper<Object> {
         addSql("{} like {}", column, new StrValWrapper(val).setSuffix("%"));
         return this;
     }
+    public <T> PlainWrapper likeRight(Func1<T, Object> func0, Object val) {
+        return likeRight(LambdaUtils.getFieldName(func0), val);
+    }
+
+    public PlainWrapper tryLikeRight(String column, Object val) {
+        if (ObjectUtil.isNotBlank(val)) {
+            likeRight(column, val);
+        }
+        return this;
+    }
+
+    public PlainWrapper notLikeRight(String column, Object val) {
+        addSql("{} not like {}", column, new StrValWrapper(val).setSuffix("%"));
+        return this;
+    }
 
     @Override
     public PlainWrapper in(String column, Object... vals) {
         addSql("{} in {}", column, new CollValWrapper(vals));
         return this;
     }
-
     @Override
     public PlainWrapper in(String column, Collection<?> coll) {
         return this.in(column, (Object) coll);
     }
-
-
-    public PlainWrapper tryEq(String column, Object val) {
-        SqlUtil.tryEq(this, column, Convert.toStr(val));
-        return this;
+    public <T> PlainWrapper in(Func1<T, Object> func0, Object val) {
+        return in(LambdaUtils.getFieldName(func0), val);
     }
-
     public PlainWrapper tryIn(String column, Object... vals) {
         SqlUtil.tryIn(this, column, vals);
         return this;
     }
+    public <T> PlainWrapper tryIn(Func1<T, Object> func0, Object val) {
+        return tryIn(LambdaUtils.getFieldName(func0), val);
+    }
 
-    public PlainWrapper tryLike(String column, Object val) {
-        SqlUtil.tryLike(this, column, val);
+
+    public PlainWrapper notIn(String column, Object... vals) {
+        addSql("{} not in {}", column, new CollValWrapper(vals));
+        return this;
+    }
+    public PlainWrapper tryNotIn(String column, Object... vals) {
+        List<String> vs = CollUtils.toStrList(vals);
+        if (!vs.isEmpty()) {
+            notIn(column, vals);
+        }
         return this;
     }
 
-    public PlainWrapper tryFuzzyLike(String column, Object val) {
-        if(ObjectUtil.isNotBlank(val)){
-            fuzzyLike(column, val);
-        }
+
+    public PlainWrapper isNull(String column){
+        addSql("{} is null", column);
+        return this;
+    }
+
+    public PlainWrapper isNotNull(String column){
+        addSql("{} is not null", column);
         return this;
     }
 
@@ -290,8 +405,27 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return this;
     }
 
-    public PlainWrapper tryBetween2Col(String leftCol, String rightCol, Collection<?> coll) {
-        SqlUtil.tryBetween2Col(this, leftCol, rightCol, CollUtil.get(coll, 0), CollUtil.get(coll, 1));
+    public PlainWrapper tryBetween(String column, Collection<?> coll) {
+        SqlUtil.tryBetween(this, column, CollUtil.get(coll, 0), CollUtil.get(coll, 1));
+        return this;
+    }
+
+    public PlainWrapper tryBetween2Col(String leftCol, String rightCol, Object val) {
+        SqlUtil.tryBetween2Col(this, leftCol, rightCol, val);
+        return this;
+    }
+    public <T> PlainWrapper tryBetween2Col(Func1<T, Object> leftCol, Func1<T, Object> rightCol, Object val) {
+        if (val instanceof Collection) {
+            Collection<? > list = (Collection<?>) val;
+            tryBetween2Col(LambdaUtils.getFieldName(leftCol), LambdaUtils.getFieldName(rightCol), CollUtil.get(list, 0), CollUtil.get(list, 1));
+        } else {
+            tryBetween2Col(LambdaUtils.getFieldName(leftCol), LambdaUtils.getFieldName(rightCol), val);
+        }
+        return this;
+    }
+
+    public PlainWrapper tryBetween2Col(String leftCol, String rightCol, Object leftVal, Object rigthVal) {
+        SqlUtil.tryBetween2Col(this, leftCol, rightCol, leftVal, rigthVal);
         return this;
     }
 
@@ -307,13 +441,21 @@ public class PlainWrapper extends QueryWrapper<Object> {
         }
     }
 
-    public PlainWrapper tryBetween2Col(String leftCol, String rightCol, Object leftVal, Object rigthVal) {
-        SqlUtil.tryBetween2Col(this, leftCol, rightCol, leftVal, rigthVal);
+    public PlainWrapper blockIfEmpty(){
+        if (StrUtil.isBlank(sqlSegment.toString())) {
+            addSql("1=0");
+        }
         return this;
     }
 
+
+
+
+
+
+
     public String getSqlSegment() {
-        return sqlSegment.toString();
+        return sqlSegment.toString() + (orderStatement.isEmpty() ? "" : " order by " + orderStatement.stream().collect(Collectors.joining(",")));
     }
 
     public Map<String, Object> toMap() {
@@ -325,20 +467,36 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return map;
     }
 
+    public JSONObject toJSONObject() {
+        return new JSONObject(toMap());
+    }
+
     private static final Pattern PTN_ORDER_SPLIT = Pattern.compile("\\s*,\\s*(?=\\w\\.|\\w{2}|$)");
 
-    public Page<?> buildPage() {
-        if (this.entity == null) {
+    public PageVo<?> buildPage(){
+        return buildPage(this.entity);
+    }
+    public static PageVo<?> buildPage(Map<String,Object> entity) {
+        if (entity == null) {
             throw new ServiceException("please fulfill the page args");
         }
-        String order = Convert.toStr(this.entity.getOrDefault("order", "")).trim();
-        Long pageSize = Convert.toLong(this.entity.getOrDefault("pageSize", 200L));
-        Long pageIndex = Convert.toLong(this.entity.getOrDefault("pageIndex", 1L));
-        Boolean searchCount = Convert.toBool(this.entity.getOrDefault("searchCount", false));
+        String order = Convert.toStr(entity.getOrDefault("order", "")).trim();
+        Integer pageSize = Convert.toInt(entity.getOrDefault("pageSize", 200));
+        Integer pageIndex = Convert.toInt(entity.getOrDefault("pageIndex", 1));
+        Boolean searchCount = Convert.toBool(entity.getOrDefault("searchCount", false));
 
         //分页参数设置
-        Page<?> page = new Page<>(pageIndex, pageSize, searchCount);
+        PageVo<?> page = new PageVo<>(pageIndex, pageSize, searchCount);
         //处理排序
+        List<OrderItem> orders = buildOrderItem(order);
+        if (!orders.isEmpty()) {
+            page.setOrders(orders);
+        }
+
+        return page;
+    }
+
+    public static List<OrderItem> buildOrderItem(String order) {
         if (StringUtils.isNotBlank(order)) {
             String[] orders = PTN_ORDER_SPLIT.split(order);
             List<OrderItem> list = new ArrayList<>();
@@ -359,16 +517,31 @@ public class PlainWrapper extends QueryWrapper<Object> {
                 OrderItem orderItem = new OrderItem(param, isDesc < 0);
                 list.add(orderItem);
             }
-            page.setOrders(list);
+            return list;
         }
-        return page;
+        return Collections.emptyList();
+    }
+
+    private final Pattern LAST_COMMA = Pattern.compile("\\s*[,，]+\\s*$");
+
+
+    @Override
+    public PlainWrapper orderByAsc(String column) {
+        String res = LAST_COMMA.matcher(column.trim()).replaceFirst("");
+        orderStatement.add(res);
+        return this;
     }
 
     @Override
     public PlainWrapper clone() {
         PlainWrapper plainWrapper = new PlainWrapper();
-        appendSqlSetmentAndCheck(getSqlSegment());
+        plainWrapper.appendSqlSetmentAndCheck(getSqlSegment());
         plainWrapper.entity = new JSONObject(entity);
         return plainWrapper;
+    }
+
+    @Override
+    public void clear() {
+        this.sqlSegment.setLength(0);
     }
 }

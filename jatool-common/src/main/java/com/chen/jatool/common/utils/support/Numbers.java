@@ -1,12 +1,12 @@
 package com.chen.jatool.common.utils.support;
 
 import cn.hutool.core.collection.CollUtil;
-import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.NumberUtil;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.ObjectUtil;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -17,16 +17,38 @@ import java.util.List;
 /**
  * @author chenwh3
  */
-public class Numbers implements Comparable<Numbers>, Cloneable {
+@Slf4j
+public class Numbers extends Number implements Comparable<Numbers>, Cloneable {
+
+    private static final BigDecimal NUM_100 = BigDecimal.valueOf(100);
+    private static final BigDecimal NUM_1000 = BigDecimal.valueOf(1000);
 
     @Getter
     private BigDecimal decimal;
+
+    public static BigDecimal parseDecimal(Object obj){
+        if (obj instanceof Numbers) {
+            return ((Numbers) obj).getDecimal();
+        } else if (obj instanceof BigDecimal) {
+            return (BigDecimal) obj;
+        }
+        return Numbers.of(obj).getDecimal();
+    }
 
     private Numbers(BigDecimal bigDecimal) {
         this.decimal = bigDecimal;
     }
 
     private Numbers() {
+    }
+
+
+    public static Numbers ofZero(){
+        return of(BigDecimal.ZERO);
+    }
+
+    public static Numbers ofOne() {
+        return of(BigDecimal.ONE);
     }
 
     public static Numbers ofNull(Object o, Object orElse) {
@@ -39,12 +61,20 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return of(o);
     }
 
+    public static Numbers ofEx(Object o, Object orElse) {
+        try {
+            return of(o);
+        } catch (Exception e) {
+            return ofNull(orElse);
+        }
+    }
+
 
     public static Numbers avg(List nums, int scale) {
         if (CollUtil.isEmpty(nums)) {
             return null;
         }
-        Numbers res = of(0);
+        Numbers res = ofZero();
         for (Object num : nums) {
             res.add(num);
         }
@@ -65,10 +95,10 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
             return null;
         }
         if (nums.size() == 1) {
-            return Numbers.of(0);
+            return Numbers.ofZero();
         }
         Numbers avg = avg(nums, scale);
-        Numbers res = of(0);
+        Numbers res = ofZero();
         for (Object num : nums) {
             res.add(Numbers.of(num).subtract(avg).pow(2));
         }
@@ -76,6 +106,14 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     }
 
 
+    /**
+     * 支持科学计数法， 如：1e32
+     * 支持二进制数字， 如：0b1010
+     * 支持八进制数字， 如：0o123
+     * 支持十六进制数字， 如：0x123
+     * 支持百分号， 如：1.2%
+     * 支持千分号， 如：1.2‰
+     */
     public static Numbers of(Object o) {
         if (ObjectUtil.isBlank(o)) {
             throw new ServiceException("Decimals can not be blank , o = {}", o);
@@ -83,44 +121,43 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         if (o instanceof Numbers) {
             return Numbers.of(((Numbers) o).getDecimal());
         }
-        BigDecimal decimal = null;
+        BigDecimal decimal;
         Numbers numbers = new Numbers();
         BigDecimal div = BigDecimal.ONE;
-        if (o instanceof BigDecimal) {
-            decimal = (BigDecimal) o;
-        } else if (o instanceof Number) {
-            decimal = NumberUtil.toBigDecimal((Number) o);
-        } else if (o instanceof String) {
-            String str = ((String) o).trim();
-            int lastIdx = str.length() - 1;
-            while (lastIdx >= 1) {
-                char last = str.charAt(lastIdx);
-                if (last == '%') {
-                    div = div.multiply(BigDecimal.valueOf(100));
-                } else if (last == '‰') {
-                    div = div.multiply(BigDecimal.valueOf(1000));
+        try {
+            if (o instanceof BigDecimal) {
+                decimal = (BigDecimal) o;
+            } else if (o instanceof Number) {
+                decimal = NumberUtil.toBigDecimal((Number) o);
+            } else if (o instanceof String) {
+                String str = ((String) o).trim();
+                int lastIdx = str.length() - 1;
+                while (lastIdx >= 1) {
+                    char last = str.charAt(lastIdx);
+                    if (last == '%') {
+                        div = div.multiply(NUM_100);
+                    } else if (last == '‰') {
+                        div = div.multiply(NUM_1000);
+                    } else {
+                        break;
+                    }
+                    lastIdx--;
+                }
+                str = str.substring(0, lastIdx + 1);
+                if (StrUtil.startWithAnyIgnoreCase(str, "0b")) {
+                    decimal = new BigDecimal(Integer.parseInt(str.substring(2), 2));
+                } else if (StrUtil.startWithAnyIgnoreCase(str, "0o")) {
+                    decimal = new BigDecimal(Integer.parseInt(str.substring(2), 8));
+                } else if (StrUtil.startWithAnyIgnoreCase(str, "0x")) {
+                    decimal = new BigDecimal(Long.parseLong(str.substring(2), 16));
                 } else {
-                    break;
-                }
-                lastIdx--;
-            }
-            str = str.substring(0, lastIdx + 1);
-            if (StrUtil.startWithAnyIgnoreCase(str, "0b")) {
-                decimal = new BigDecimal(Integer.parseInt(str.substring(2), 2));
-            } else if (StrUtil.startWithAnyIgnoreCase(str, "0o")) {
-                decimal = new BigDecimal(Integer.parseInt(str.substring(2), 8));
-            } else if (StrUtil.startWithAnyIgnoreCase(str, "0x")) {
-                decimal = new BigDecimal(Long.parseLong(str.substring(2), 16));
-            } else {
-                try {
                     decimal = new BigDecimal(str);
-                } catch (Exception e) {
-                    // convert性能一般
-                    decimal = Convert.convertWithCheck(BigDecimal.class, o, null, false);
                 }
+            } else {
+                throw new IllegalArgumentException("unknown type");
             }
-        } else {
-            decimal = Convert.toBigDecimal(o);
+        } catch (Exception e) {
+            throw new IllegalArgumentException(StrUtil.format("parse decimal error , type = {} , value = {}", o.getClass(), o));
         }
         if (!div.equals(BigDecimal.ONE)) {
             decimal = decimal.divide(div);
@@ -141,15 +178,6 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
     public Numbers add(Object o) {
         decimal = getDecimal().add(parseDecimal(o));
         return this;
-    }
-
-    public static BigDecimal parseDecimal(Object obj){
-        if (obj instanceof Numbers) {
-            return ((Numbers) obj).getDecimal();
-        } else if (obj instanceof BigDecimal) {
-            return (BigDecimal) obj;
-        }
-        return Numbers.of(obj).getDecimal();
     }
 
     public Numbers subtract(Object o) {
@@ -174,17 +202,6 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         decimal = getDecimal().divide(parseDecimal(o));
         return this;
     }
-
-    public Numbers pow(int pow) {
-        decimal = getDecimal().pow(pow);
-        return this;
-    }
-
-    public Numbers sqrt() {
-        decimal = BigDecimal.valueOf(Math.sqrt(dbVal()));
-        return this;
-    }
-
     /**
      * @param scale 四舍五入 , 保留scale位小数
      */
@@ -193,9 +210,33 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return this;
     }
 
+    /**
+     * 指数运算
+     */
+    public Numbers pow(int pow) {
+        decimal = getDecimal().pow(pow);
+        return this;
+    }
+
+    /**
+     * 开根号
+     */
+    public Numbers sqrt() {
+        decimal = BigDecimal.valueOf(Math.sqrt(dbVal()));
+        return this;
+    }
+
+
     @Override
     public String toString() {
         return decimal.toString();
+    }
+
+    /**
+     * 去除所有无用的0和.
+     */
+    public String toPlainStr(){
+        return decimal.stripTrailingZeros().toPlainString();
     }
 
     @Override
@@ -207,8 +248,20 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return compareTo(of(o)) > 0;
     }
 
+    public boolean ge(Object o) {
+        return compareTo(of(o)) >= 0;
+    }
+
     public boolean lt(Object o) {
         return compareTo(of(o)) < 0;
+    }
+
+    public boolean le(Object o) {
+        return compareTo(of(o)) <= 0;
+    }
+
+    public boolean ne(Object o) {
+        return compareTo(of(o)) != 0;
     }
 
     public boolean eq(Object o) {
@@ -242,12 +295,70 @@ public class Numbers implements Comparable<Numbers>, Cloneable {
         return this;
     }
 
+    public int scale() {
+        return decimal.scale();
+    }
+
+    public Numbers stripTrail0() {
+        decimal = decimal.stripTrailingZeros();
+        return this;
+    }
+
+
+    @Override
+    public int intValue() {
+        return getDecimal().intValue();
+    }
+
+    @Override
+    public long longValue() {
+        return getDecimal().longValue();
+    }
+
+    @Override
+    public float floatValue() {
+        return getDecimal().floatValue();
+    }
+
+    @Override
+    public double doubleValue() {
+        return getDecimal().doubleValue();
+    }
+
     public Double dbVal() {
-        return decimal.doubleValue();
+        return doubleValue();
     }
 
     public Integer intVal() {
-        return decimal.intValue();
+        return intValue();
+    }
+
+    public Long longVal() {
+        return longValue();
+    }
+
+    /**
+     * 闭区间 [min,max]
+     */
+    public boolean between(Object min, Object max, boolean leftClose, boolean rightClose) {
+        Numbers minNum = of(min);
+        Numbers maxNum = of(max);
+        return (leftClose ? compareTo(minNum) >= 0 : compareTo(minNum) > 0)
+                && (rightClose ? compareTo(maxNum) <= 0 : compareTo(maxNum) < 0);
+    }
+
+    /**
+     * 闭区间 [min,max]
+     */
+    public boolean between(Object min, Object max) {
+        return between(min, max, true, true);
+    }
+
+    /**
+     * 开区间 (min,max)
+     */
+    public boolean betweenOpen(Object min, Object max) {
+        return between(min, max, false, false);
     }
 
     @Override

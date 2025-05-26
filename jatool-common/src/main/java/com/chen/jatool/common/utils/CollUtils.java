@@ -9,6 +9,8 @@ import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
 import com.chen.jatool.common.utils.support.string.MessageBuilder;
 import org.apache.commons.lang3.StringUtils;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
@@ -28,6 +30,14 @@ public class CollUtils {
     public static <T> Predicate<T> distinctByKey(Function<? super T, ?> keyExtractor) {
         Set<Object> seen = ConcurrentHashMap.newKeySet();
         return t -> seen.add(keyExtractor.apply(t));
+    }
+
+    /**
+     *  pass 看作不做去重的条件
+     */
+    public static <T> Predicate<T> distinctByKeyAndSetPass(Function<? super T, ?> distinctKey, Function<? super T, Boolean> pass) {
+        Set<Object> seen = ConcurrentHashMap.newKeySet();
+        return t -> pass.apply(t) || seen.add(distinctKey.apply(t));
     }
 
     public static <T> Predicate<T> repeatByKey(Function<? super T, ?> keyExtractor) {
@@ -136,6 +146,18 @@ public class CollUtils {
     public static List<String> toStrList(Object obj) {
         return toStream(obj).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toList());
     }
+    public static List<String> splitToStrList(Object obj, String split){
+        List<String> list = toStrList(obj);
+        return list.stream().flatMap(s -> StrUtil.split(s, split).stream())
+                .filter(StringUtils::isNotBlank)
+                .map(String::trim)
+                .collect(Collectors.toList());
+    }
+
+    public static Set<String> splitToStrSet(Object obj, String split) {
+        return new HashSet<>(splitToStrList(obj, split));
+    }
+
     public static Set<String> toStrSet(Object obj){
         return toStream(obj).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toSet());
     }
@@ -189,18 +211,51 @@ public class CollUtils {
         return sum;
     }
 
-    public static <T, R> R maxCount(List<T> list, Function<T, R> matcher) {
+
+    public static <T, R> Map<R, Long> countMap(List<T> list, Function<T, R> matcher) {
         if (list == null || list.isEmpty()) {
-            return null;
+            return Collections.emptyMap();
         }
-        Map<R, Long> frequencyMap = list.stream()
+
+        return list.stream()
                 .map(matcher)
                 .collect(Collectors.groupingBy(e -> e, Collectors.counting()));
+    }
 
+    public static <T, R> R maxCount(List<T> list, Function<T, R> matcher) {
+        Map<R, Long> frequencyMap = countMap(list, matcher);
+        if (frequencyMap.isEmpty()) {
+            return null;
+        }
         return frequencyMap.entrySet().stream()
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .orElse(null);
+    }
+
+    /**
+     * 支持使用负数取倒数n个
+     */
+    @SuppressWarnings("unchecked")
+    public static <T> List<T> getAny(Collection<T> list, int... idxs) {
+        List<T> res = new ArrayList<>();
+        int size = list.size();
+
+        List<T> list1 ;
+        if (list instanceof List) {
+            list1 = (List<T>) list;
+        } else {
+            list1 = (List<T>) Arrays.asList(list.toArray());
+        }
+        for (int idx : idxs) {
+            if (idx < 0) {
+                idx = Math.floorMod(idx, size);
+            }
+            if (idx < size) {
+                res.add(list1.get(idx));
+            }
+        }
+        return res;
     }
 
     public static < T extends Comparable> T max(List<?> list, String key, Class<T> clazz) {
@@ -209,6 +264,16 @@ public class CollUtils {
         }
         return list.stream()
                 .map(e -> Convert.convert(clazz, ObjectUtil.get(e, key), null))
+                .max((a, b) -> a.compareTo(b)).get();
+    }
+
+    public static <T extends Comparable, U> T max(List<U> list, Function<U, T> function) {
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+        return list.stream()
+                .map(e -> function.apply(e))
+                .filter(e -> e != null)
                 .max((a, b) -> a.compareTo(b)).get();
     }
 
@@ -285,6 +350,43 @@ public class CollUtils {
         if (mb.containMsg()) {
             throw new ServiceException(mb.toString());
         }
+    }
+
+    /**
+     * t1: 满足条件list
+     * t2: 不满足条件list
+     */
+    public static <T> Tuple2<List<T>, List<T>> split(List<T> list, Predicate<T> predicate) {
+        if (CollUtil.isEmpty(list)) {
+            return Tuples.of(new ArrayList<>(), new ArrayList<>());
+        }
+        List<T> trueList = new ArrayList<>();
+        List<T> falseList = new ArrayList<>();
+        for (T t : list) {
+            if (predicate.test(t)) {
+                trueList.add(t);
+            } else {
+                falseList.add(t);
+            }
+        }
+        return Tuples.of(trueList, falseList);
+    }
+
+
+    public static <T> List<T> ofList(T... ts) {
+        List<T> list = new ArrayList<>();
+        for (T t : ts) {
+            list.add(t);
+        }
+        return list;
+    }
+
+    public static <T> Set<T> ofSet(T... ts) {
+        Set<T> set = new HashSet<T>();
+        for (T t : ts) {
+            set.add(t);
+        }
+        return set;
     }
 
 

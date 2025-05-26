@@ -1,6 +1,5 @@
 package com.chen.jatool.common.utils.support;
 
-
 import com.chen.jatool.common.utils.StringUtil;
 
 import java.math.BigDecimal;
@@ -11,6 +10,11 @@ import java.util.List;
 import java.util.Map;
 
 /**
+ * 支持+-x/()等普通的数学运算
+ * 支持函数：sqrt,sin,cos,tan,min,max,%
+ * 支持三目运算符：a?b:c
+ * 支持逻辑运算符：&& ||
+ *
  * @author chenwh3
  * 参考资料： <a href="https://zh.wikipedia.org/wiki/%E9%80%92%E5%BD%92%E4%B8%8B%E9%99%8D%E8%A7%A3%E6%9E%90%E5%99%A8">递归下降解析器</a>
  */
@@ -23,6 +27,9 @@ public class FormulaCalculator {
     public static final char DIV = '/';
     public static final char A = 'a';
     public static final char Z = 'z';
+
+    public static final char _A = 'A';
+    public static final char _Z = 'Z';
     public static final char L_BRACKET = '(';
     public static final String SQRT = "sqrt";
     public static final char R_BRACKET = ')';
@@ -52,26 +59,35 @@ public class FormulaCalculator {
         return new FormulaCalculator(str);
     }
 
+    public static FormulaCalculator of(String str,MathContext mc) {
+        FormulaCalculator res = new FormulaCalculator(str);
+        if (mc != null) {
+            res.mc = mc;
+        }
+        return res;
+    }
+
 
     private int pos;
 
     private int ch;
 
-    final MathContext mc = new MathContext(6, RoundingMode.HALF_UP);
+    protected MathContext mc = new MathContext(6, RoundingMode.HALF_UP);
+
 
     private static boolean isNum(char ch) {
         return (ch >= CHAR_0 && ch <= CHAR_9) || ch == DOT;
     }
 
     private static boolean isChar(char ch) {
-        return ch >= A && ch <= Z || StringUtil.isChinese(ch);
+        return ch >= A && ch <= Z || ch >= _A && ch <= _Z || StringUtil.isChinese(ch);
     }
 
     public BigDecimal parse() {
         return parse(null);
     }
 
-    public BigDecimal parse(Map<String, BigDecimal> map) {
+    public synchronized BigDecimal parse(Map<String, BigDecimal> map) {
         this.map = map;
         pos = -1;
         nextChar();

@@ -1,11 +1,10 @@
 package com.chen.jatool.common.utils;
 
 import cn.hutool.core.convert.Convert;
-import cn.hutool.core.util.ReflectUtil;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
-import com.chen.jatool.common.utils.CollUtils;
 import com.chen.jatool.common.utils.support.Numbers;
+import com.chen.jatool.common.utils.support.bean.BeanAccessor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
@@ -67,11 +66,32 @@ public class ObjectUtil {
         return obj;
     }
 
+    public static String removeSubAndPre(Object ori, String subAndPre) {
+        if (ori == null) {
+            return "";
+        }
+        String res = ori.toString().trim();
+        if (StrUtil.isBlank(subAndPre)) {
+            return res;
+        }
+        if (res.startsWith(subAndPre)) {
+            res = res.substring(subAndPre.length());
+        }
+        if (res.endsWith(subAndPre)) {
+            res = res.substring(0, res.length() - subAndPre.length());
+        }
+        return res;
+    }
+
     public static Object get(Object obj, String field) {
+        if (obj == null) {
+            return null;
+        }
         if (obj instanceof Map) {
             return ((Map<?, ?>) obj).get(field);
         } else {
-            return ReflectUtil.getFieldValue(obj, field);
+            return new BeanAccessor(obj).get(field);
+//            return ReflectUtil.getFieldValue(obj, field);
         }
     }
 
@@ -84,10 +104,13 @@ public class ObjectUtil {
     }
 
     public static void set(Object obj, String field, Object val) {
+        if (obj == null) {
+            return;
+        }
         if (obj instanceof Map) {
             ((Map) obj).put(field, val);
         } else {
-            ReflectUtil.setFieldValue(obj, field, val);
+            new BeanAccessor(obj).set(field, val);
         }
     }
 
@@ -131,6 +154,29 @@ public class ObjectUtil {
             return (R) Convert.convert(obj1.getClass(), Numbers.of(obj1).add(obj2).getDecimal());
         }
         throw new ServiceException(StrUtil.format("not support merge type between {} and {}", obj1.getClass(), obj2.getClass()));
+    }
+
+    @SuppressWarnings({"unchecked"})
+    public static <T> T firstNotNull(T... args) {
+        if (args == null) {
+            return null;
+        }
+        for (T t : args) {
+            if (t != null) {
+                return t;
+            }
+        }
+        return null;
+    }
+
+    public static void main(String[] args) throws Exception {
+//        long start = System.currentTimeMillis();
+//        // 1亿 3秒
+//        for (int i = 0; i < 100000000; i++) {
+////            Object invoke = BeanUtils.getPropertyDescriptor(f.getClass(), "checkpoints").getReadMethod().invoke(f);
+//            ObjectUtil.get(f, "checkpoints");
+//        }
+//        System.out.println(System.currentTimeMillis() - start);
     }
 
 }
