@@ -57,7 +57,7 @@ public class StringUtil {
      * 该方法较慢，原理未知
      */
     @Deprecated
-    public static String replace1(CharSequence cs, Map<String, ?> replaceMap) {
+    private static String replace1(CharSequence cs, Map<String, ?> replaceMap) {
         int length = cs.length();
         StringBuilder sb = new StringBuilder(length + (length >> 2)); // *1.25
 
