@@ -29,7 +29,7 @@ public class StringUtil {
         return toStringOrElse(obj, "");
     }
 
-    public static String replace(CharSequence cs, Map<String, Object> replaceMap) {
+    public static String replace(CharSequence cs, Map<String, ?> replaceMap) {
         int length = cs.length();
         int i = 0;
         StringBuilder sb = new StringBuilder(cs);
