@@ -1,5 +1,9 @@
 package com.chen.jatool.common.utils;
 
+import cn.hutool.core.util.StrUtil;
+
+import java.util.Map;
+
 public class StringUtil {
 
     public static boolean isChinese(char ch){
@@ -23,5 +27,32 @@ public class StringUtil {
 
     public static String toNotNullStr(Object obj) {
         return toStringOrElse(obj, "");
+    }
+
+    public static String replace(CharSequence cs, Map<String, Object> replaceMap) {
+        int length = cs.length();
+        int i = 0;
+        StringBuilder sb = new StringBuilder(cs);
+
+        for (; i < length; i++) {
+            if (sb.charAt(i) == '{') {
+                int j = i + 1;
+                for (; j < length; j++) {
+                    if (sb.charAt(j) == '{') {
+                        i = j;
+                    } else if (sb.charAt(j) == '}') {
+                        String key = sb.substring(i + 1, j);
+                        String value = StrUtil.toStringOrNull(replaceMap.get(key));
+                        if (value != null) {
+                            sb.replace(i, j + 1, value);
+                            length = sb.length();
+                            i = i + value.length();
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return sb.toString();
     }
 }

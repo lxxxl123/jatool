@@ -441,18 +441,16 @@ public class PlainWrapper extends QueryWrapper<Object> {
         }
     }
 
+    @Getter
+    private Boolean block = false;
+
     public PlainWrapper blockIfEmpty(){
         if (StrUtil.isBlank(sqlSegment.toString())) {
+            block = true;
             addSql("1=0");
         }
         return this;
     }
-
-
-
-
-
-
 
     public String getSqlSegment() {
         return sqlSegment.toString() + (orderStatement.isEmpty() ? "" : " order by " + orderStatement.stream().collect(Collectors.joining(",")));

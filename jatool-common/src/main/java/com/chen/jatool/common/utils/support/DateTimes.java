@@ -138,36 +138,75 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable, Serializable
         this.calendar = calendar;
     }
 
+    /**
+     * 空则返回当前时间
+     */
     public static DateTimes ofNull(Object o) {
-        if (o == null || "".equals(o)) {
+        if (ObjectUtil.isBlank(o)) {
             return new DateTimes(Calendar.getInstance());
         }
         return of(o);
     }
 
-    public static DateTimes ofEx(Object o) {
-        if (o == null || ObjectUtil.isBlank(o)) {
-            return null;
-        }
-        try {
-            return of(o);
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
     public static DateTimes ofNull(Object o, Object orElse) {
-        if (o == null || "".equals(o)) {
+        if (ObjectUtil.isBlank(o)) {
             return ofNull(orElse);
         }
         return of(o);
     }
 
     public static DateTimes ofNull(Object o, Supplier<Object> orElse) {
-        if (o == null || "".equals(o)) {
+        if (ObjectUtil.isBlank(o)) {
             return ofNull(orElse == null ? null : orElse.get());
         }
         return of(o);
+    }
+
+    /**
+     * 错误或者空则返回null
+     */
+    public static DateTimes ofEx(Object o) {
+        if (ObjectUtil.isBlank(o)) {
+            return null;
+        }
+        try {
+            return of(o);
+        } catch (Exception e) {
+            log.warn("{}", e.getLocalizedMessage());
+            return null;
+        }
+    }
+    /**
+     * 错误或者空则返回orElse，orElse解析也出错则返回null
+     */
+    public static DateTimes ofEx(Object o, Object orElse) {
+        if (ObjectUtil.isBlank(o)) {
+            return ofEx(orElse);
+        }
+        try {
+            return of(o);
+        } catch (Exception e) {
+            log.warn("{}", e.getLocalizedMessage());
+            return ofEx(orElse);
+        }
+    }
+
+    /**
+     * 异常返回null
+     */
+    public static <T> T ofThen(Object o , Function<DateTimes, T> then) {
+        return ofThen(o, then, null);
+    }
+
+    /**
+     * 异常会返回orElse
+     */
+    public static <T> T ofThen(Object o , Function<DateTimes, T> then, T orElse) {
+        DateTimes dateTimes = ofEx(o);
+        if (dateTimes != null) {
+            return then.apply(dateTimes);
+        }
+        return orElse;
     }
 
     /**
@@ -858,6 +897,7 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable, Serializable
         System.out.println(DateTimes.of("2024-01-02").isHoliday());
         System.out.println(DateTimes.of("2024-06-01").isHoliday());
         System.out.println(DateTimes.now().endOfDate().formatDbTime());
+        System.out.println(ofThen(null, DateTimes::formatDateTimeMs, "123"));
 
     }
 

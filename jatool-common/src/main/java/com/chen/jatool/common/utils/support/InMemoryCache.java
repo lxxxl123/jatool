@@ -18,7 +18,7 @@ import java.util.function.Function;
 
 
 /**
- *
+ * 空值不会缓存
  * @author chenwh3
  */
 @ToString
@@ -114,9 +114,9 @@ public class InMemoryCache<K,V> {
     public CacheItem<V> remove(K key) {
         CacheItem<V> remove = cache.remove(key);
         if (remove != null) {
-            log.info("成功移除缓存 , key = {} , value = {}", key , remove.getValue());
+            log.debug("成功移除缓存 , key = {} , value = {}", key , remove.getValue());
         } else {
-            log.info("缓存不存在 , key = {}", key);
+            log.debug("缓存不存在 , key = {}", key);
         }
         return remove;
     }

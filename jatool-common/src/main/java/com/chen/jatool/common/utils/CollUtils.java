@@ -3,10 +3,10 @@ package com.chen.jatool.common.utils;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.convert.Convert;
-import cn.hutool.core.lang.func.Func1;
-import cn.hutool.core.lang.func.LambdaUtil;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
+import com.chen.jatool.common.utils.support.lambda.Func1;
+import com.chen.jatool.common.utils.support.lambda.LambdaUtils;
 import com.chen.jatool.common.utils.support.string.MessageBuilder;
 import org.apache.commons.lang3.StringUtils;
 import reactor.util.function.Tuple2;
@@ -80,6 +80,13 @@ public class CollUtils {
         return new HashSet<>(coll);
     }
 
+    public static <T> Stream<T> iter2Stream(Iterable<T> obj) {
+        if (obj == null) {
+            return Stream.of();
+        }
+        return StreamSupport.stream(obj.spliterator(), false);
+    }
+
     /**
      * 强转collection , obj 2 list<obj> , arr[] 2 list , list 2 list
      */
@@ -88,10 +95,8 @@ public class CollUtils {
             return Stream.of();
         } else if (obj instanceof Stream) {
             return ((Stream<?>) obj);
-        } else if (obj instanceof Collection) {
-            return ((Collection<?>) obj).stream();
         } else if (obj instanceof Iterable) {
-            return StreamSupport.stream(((Iterable<?>) obj).spliterator(), false);
+            return iter2Stream((Iterable<?>) obj);
         } else if (obj.getClass().isArray()) {
             int len = Array.getLength(obj);
             if (len == 1) {
@@ -106,7 +111,8 @@ public class CollUtils {
         }
     }
 
-    public static <T> Stream<T> toStream(List<T>... list) {
+    @SafeVarargs
+    public static <T> Stream<T> toStream(Collection<T>... list) {
         return Arrays.stream(list).filter(Objects::nonNull)
                 .flatMap(Collection::stream);
     }
@@ -118,6 +124,10 @@ public class CollUtils {
 
     public static List<?> toList(Object obj) {
         return toStream(obj).collect(Collectors.toList());
+    }
+
+    public static List<?> toNotNullList(Object obj) {
+        return toStream(obj).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
     /**
@@ -143,6 +153,11 @@ public class CollUtils {
     public static Collection<String> toStrColl(Object obj) {
         return toStrList(obj);
     }
+
+    public static List<String> toNnStrList(Object obj) {
+        return toStream(obj).map(StrUtil::toStringOrNull).collect(Collectors.toList());
+    }
+
     public static List<String> toStrList(Object obj) {
         return toStream(obj).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toList());
     }
@@ -162,6 +177,10 @@ public class CollUtils {
         return toStream(obj).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toSet());
     }
 
+    public static Set<Integer> toIntSet(Object obj){
+        return toStream(obj).map(Convert::toInt).filter(Objects::nonNull).collect(Collectors.toSet());
+    }
+
     public static List<String> toTrimList(Object obj) {
         return toColl(obj).stream().map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).map(String::trim).collect(Collectors.toList());
     }
@@ -170,10 +189,6 @@ public class CollUtils {
         return Arrays.stream(obj).flatMap(CollUtils::toStream).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toList());
     }
 
-    @Deprecated
-    public static Collection<Integer> toIntColl(Object obj) {
-        return toStream(obj).map(Convert::toInt).collect(Collectors.toList());
-    }
 
     public static List<Integer> toIntList(Object obj) {
         return toStream(obj).map(Convert::toInt).filter(Objects::nonNull).collect(Collectors.toList());
@@ -258,32 +273,37 @@ public class CollUtils {
         return res;
     }
 
-    public static < T extends Comparable> T max(List<?> list, String key, Class<T> clazz) {
-        if (list == null || list.isEmpty()) {
-            return null;
-        }
-        return list.stream()
-                .map(e -> Convert.convert(clazz, ObjectUtil.get(e, key), null))
-                .max((a, b) -> a.compareTo(b)).get();
+    @SafeVarargs
+    public static <T extends Comparable<T>> T min(T... list) {
+        return Arrays.stream(list).filter(Objects::nonNull).min(Comparable::compareTo).orElse(null);
+    }
+    @SafeVarargs
+    public static <T extends Comparable<T>> T max(T... list) {
+        return Arrays.stream(list).filter(Objects::nonNull).max(Comparable::compareTo).orElse(null);
     }
 
-    public static <T extends Comparable, U> T max(List<U> list, Function<U, T> function) {
-        if (list == null || list.isEmpty()) {
-            return null;
-        }
-        return list.stream()
-                .map(e -> function.apply(e))
-                .filter(e -> e != null)
-                .max((a, b) -> a.compareTo(b)).get();
+
+    public static <T extends Comparable<T>, U> T max(Collection<U> list, Function<U, T> function) {
+        return iter2Stream(list)
+                .map(function)
+                .filter(Objects::nonNull)
+                .max(Comparable::compareTo).orElse(null);
     }
 
-    public static < T extends Comparable> T min(List<?> list, String key, Class<T> clazz) {
-        if (list == null || list.isEmpty()) {
-            return null;
-        }
-        return list.stream()
-                .map(e -> Convert.convert(clazz, ObjectUtil.get(e, key), null))
-                .min((a, b) -> a.compareTo(b)).get();
+    public static <T extends Comparable<T>, U> T min(Iterable<U> list, Function<U, T> function) {
+        return iter2Stream(list)
+                .map(function)
+                .filter(Objects::nonNull)
+                .min(Comparable::compareTo).orElse(null);
+    }
+
+    public static < T extends Comparable<T>> T max(List<?> list, String key, Class<T> clazz) {
+        return max(list, e -> Convert.convert(clazz, ObjectUtil.get(e, key), null));
+    }
+
+
+    public static < T extends Comparable<T>> T min(List<?> list, String key, Class<T> clazz) {
+        return min(list, e -> Convert.convert(clazz, ObjectUtil.get(e, key), null));
     }
 
     public static boolean containsAny(Collection<?> coll1, Collection<?> coll2){
@@ -314,22 +334,11 @@ public class CollUtils {
     }
 
     public static <T> void checkDuplicate(List<T> list, List<Func1<T, ?>> keyExtractors) {
-        List<String> fieldNames = keyExtractors.stream().map(LambdaUtil::getFieldName).collect(Collectors.toList());
-        List<Function<T, ?>> keysList = keyExtractors.stream().map(e -> {
-            Function<T, ?> r = t -> {
-                try {
-                    return e.call(t);
-                } catch (Exception ex) {
-                    throw new ServiceException(ex);
-                }
-            };
-            return r;
-        }).collect(Collectors.toList());
-
-        checkDuplicate(list, fieldNames, keysList);
+        List<String> fieldNames = keyExtractors.stream().map(LambdaUtils::getFieldName).collect(Collectors.toList());
+        checkDuplicate(list, fieldNames, keyExtractors);
     }
 
-    public static <T> void checkDuplicate(List<T> list, List<String> fieldNames, List<Function<T, ?>> keyExtractors) {
+    public static <T> void checkDuplicate(List<T> list, List<String> fieldNames, List<? extends Function<T, ?>> keyExtractors) {
         MessageBuilder mb = new MessageBuilder("数据重复：</br>", "</br>", "");
         list.stream().filter(CollUtils.repeatByKeys(keyExtractors.toArray(new Function[]{})))
                 .forEach(e -> {
@@ -373,21 +382,16 @@ public class CollUtils {
     }
 
 
+    @SafeVarargs
     public static <T> List<T> ofList(T... ts) {
-        List<T> list = new ArrayList<>();
-        for (T t : ts) {
-            list.add(t);
-        }
-        return list;
+        return new ArrayList<>(Arrays.asList(ts));
     }
 
+    @SafeVarargs
     public static <T> Set<T> ofSet(T... ts) {
-        Set<T> set = new HashSet<T>();
-        for (T t : ts) {
-            set.add(t);
-        }
-        return set;
+        return new HashSet<>(Arrays.asList(ts));
     }
+
 
 
 }

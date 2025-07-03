@@ -13,6 +13,7 @@ import java.math.RoundingMode;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * @author chenwh3
@@ -25,6 +26,51 @@ public class Numbers extends Number implements Comparable<Numbers>, Cloneable {
 
     @Getter
     private BigDecimal decimal;
+
+    public static Numbers sum(List<?> nums) {
+        if (CollUtil.isEmpty(nums)) {
+            return null;
+        }
+        Numbers res = ofZero();
+        for (Object num : nums) {
+            if (ObjectUtil.isBlank(num)) {
+                continue;
+            }
+            res.add(num);
+        }
+        return res;
+    }
+
+    public static Numbers avg(List<?> nums, int scale) {
+        if (CollUtil.isEmpty(nums)) {
+            return null;
+        }
+        return sum(nums).divide(nums.size(), scale);
+    }
+
+    public static Numbers stdev(List<?> nums){
+        return stdev(nums, 16);
+    }
+
+    /**
+     * 计算标准偏差（又称为-样品标准差）
+     * 最大精度应该为15位左右 , 再大可能精度丢失 ， 由sqrt决定 ， 除非自行实现sqrt
+     * @param scale 计算过程的精度，并非结果精度
+     */
+    public static Numbers stdev(List<?> nums, int scale) {
+        if (CollUtil.isEmpty(nums)) {
+            return null;
+        }
+        if (nums.size() == 1) {
+            return Numbers.ofZero();
+        }
+        Numbers avg = avg(nums, scale);
+        Numbers res = ofZero();
+        for (Object num : nums) {
+            res.add(Numbers.of(num).subtract(avg).pow(2));
+        }
+        return res.divide(nums.size() - 1, scale).sqrt();
+    }
 
     public static BigDecimal parseDecimal(Object obj){
         if (obj instanceof Numbers) {
@@ -51,6 +97,14 @@ public class Numbers extends Number implements Comparable<Numbers>, Cloneable {
         return of(BigDecimal.ONE);
     }
 
+    public static Numbers ofNull(Object o) {
+        return ofNull(o, BigDecimal.ZERO);
+    }
+
+    /**
+     * 使用ofEx代替
+     */
+    @Deprecated
     public static Numbers ofNull(Object o, Object orElse) {
         if (ObjectUtil.isBlank(o)) {
             if (ObjectUtil.isBlank(orElse)) {
@@ -61,49 +115,48 @@ public class Numbers extends Number implements Comparable<Numbers>, Cloneable {
         return of(o);
     }
 
-    public static Numbers ofEx(Object o, Object orElse) {
+    public static Numbers ofEx(Object o) {
+        if (ObjectUtil.isBlank(o)) {
+            return null;
+        }
         try {
             return of(o);
         } catch (Exception e) {
-            return ofNull(orElse);
-        }
-    }
-
-
-    public static Numbers avg(List nums, int scale) {
-        if (CollUtil.isEmpty(nums)) {
+            log.warn("{}", e.getLocalizedMessage());
             return null;
         }
-        Numbers res = ofZero();
-        for (Object num : nums) {
-            res.add(num);
-        }
-        return res.divide(nums.size(), scale);
     }
 
-    public static Numbers stdev(List nums){
-        return stdev(nums, 16);
+    public static Numbers ofEx(Object o, Object orElse) {
+        if (ObjectUtil.isBlank(o)) {
+            return ofEx(orElse);
+        }
+        try {
+            return of(o);
+        } catch (Exception e) {
+            log.warn("{}", e.getLocalizedMessage());
+            return ofEx(orElse);
+        }
     }
 
     /**
-     * 计算标准偏差（又称为-样品标准差）
-     * 最大精度应该为15位左右 , 再大可能精度丢失 ， 由sqrt决定 ， 除非自行实现sqrt
-     * @param scale 计算过程的精度，并非结果精度
+     * 异常返回null
      */
-    public static Numbers stdev(List nums, int scale) {
-        if (CollUtil.isEmpty(nums)) {
-            return null;
-        }
-        if (nums.size() == 1) {
-            return Numbers.ofZero();
-        }
-        Numbers avg = avg(nums, scale);
-        Numbers res = ofZero();
-        for (Object num : nums) {
-            res.add(Numbers.of(num).subtract(avg).pow(2));
-        }
-        return res.divide(nums.size() - 1, scale).sqrt();
+    public static <T> T ofThen(Object o , Function<Numbers, T> then) {
+        return ofThen(o, then, null);
     }
+
+    /**
+     * 异常会返回orElse
+     */
+    public static <T> T ofThen(Object o , Function<Numbers, T> then, T orElse) {
+        Numbers obj = Numbers.ofEx(o);
+        if (obj != null) {
+            return then.apply(obj);
+        }
+        return orElse;
+    }
+
 
 
     /**
@@ -166,9 +219,7 @@ public class Numbers extends Number implements Comparable<Numbers>, Cloneable {
         return numbers;
     }
 
-    public static Numbers ofNull(Object o) {
-        return ofNull(o, BigDecimal.ZERO);
-    }
+
 
     @Override
     public Numbers clone() {
