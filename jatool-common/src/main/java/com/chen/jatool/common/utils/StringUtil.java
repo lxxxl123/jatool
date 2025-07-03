@@ -30,6 +30,19 @@ public class StringUtil {
         return toStringOrElse(obj, "");
     }
 
+    public static int endIndexOf(String cs, String find) {
+        return endIndexOf(cs, find, 0);
+    }
+
+    public static int endIndexOf(String cs, String find, int start) {
+        int i = cs.indexOf(find, start);
+        if (i > -1) {
+            return i + find.length();
+        }
+        return i;
+    }
+
+
     public static String replace(CharSequence cs, Map<String, ?> replaceMap) {
         int length = cs.length();
         StringBuilder sb = new StringBuilder(cs);
@@ -93,7 +106,4 @@ public class StringUtil {
         System.out.println(System.currentTimeMillis() - current);
     }
 
-    public static void main(String[] args) {
-        testReplace();
-    }
 }
