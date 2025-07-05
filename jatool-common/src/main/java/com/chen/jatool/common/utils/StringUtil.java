@@ -1,8 +1,11 @@
 package com.chen.jatool.common.utils;
 
+
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 
+import java.util.List;
 import java.util.Map;
 
 public class StringUtil {
@@ -35,11 +38,46 @@ public class StringUtil {
     }
 
     public static int endIndexOf(String cs, String find, int start) {
+        if (cs == null) {
+            return -1;
+        }
         int i = cs.indexOf(find, start);
         if (i > -1) {
             return i + find.length();
         }
         return i;
+    }
+
+    public static int endIndexOfBatch(String cs, List<? extends CharSequence> list, int start) {
+        return endIndexOfBatch(cs, list, start, -1);
+    }
+
+    public static int endIndexOfBatch(String cs, List<? extends CharSequence> list, int start, int orElseIdx) {
+        int i = indexOfBatch(cs, list, start, orElseIdx);
+        if (i == orElseIdx || i == -1) {
+            return i;
+        }
+        return i + CollUtil.getLast(list).length();
+    }
+
+
+    public static int indexOfBatch(String cs, List<? extends CharSequence> list, int start) {
+        return indexOfBatch(cs, list, start, -1);
+    }
+    public static int indexOfBatch(String cs, List<? extends CharSequence> list, int start , int orElseIdx) {
+        if (cs == null) {
+            return orElseIdx;
+        }
+        if (CollUtil.isEmpty(list)) {
+            return orElseIdx;
+        }
+        for (CharSequence c : list) {
+            start = cs.indexOf(c.toString(), start);
+            if (start == -1) {
+                return orElseIdx;
+            }
+        }
+        return start;
     }
 
 
@@ -90,6 +128,8 @@ public class StringUtil {
         }
         return sb.toString();
     }
+
+
 
     private static void testReplace() {
         long current = System.currentTimeMillis();
