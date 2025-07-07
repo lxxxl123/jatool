@@ -1,6 +1,7 @@
 package com.chen.jatool.common.utils;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.collection.IterUtil;
 import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.StrUtil;
@@ -9,6 +10,7 @@ import com.chen.jatool.common.utils.support.lambda.Func1;
 import com.chen.jatool.common.utils.support.lambda.LambdaUtils;
 import com.chen.jatool.common.utils.support.string.MessageBuilder;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.poi.ss.formula.functions.T;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
@@ -248,30 +250,38 @@ public class CollUtils {
                 .orElse(null);
     }
 
+
+    public static <T> T get(Collection<T> list, int idx) {
+        int size = list.size();
+        if (idx < 0) {
+            idx = size + idx;
+        }
+        if (idx < 0 || idx >= size) {
+            return null;
+        }
+        if (list instanceof List) {
+            return ((List<T>) list).get(idx);
+        }
+        return IterUtil.get(list.iterator(), idx);
+    }
     /**
      * 支持使用负数取倒数n个
      */
     @SuppressWarnings("unchecked")
     public static <T> List<T> getAny(Collection<T> list, int... idxs) {
         List<T> res = new ArrayList<>();
-        int size = list.size();
-
-        List<T> list1 ;
+        List<T> list1;
         if (list instanceof List) {
             list1 = (List<T>) list;
         } else {
             list1 = (List<T>) Arrays.asList(list.toArray());
         }
         for (int idx : idxs) {
-            if (idx < 0) {
-                idx = Math.floorMod(idx, size);
-            }
-            if (idx < size) {
-                res.add(list1.get(idx));
-            }
+            res.add(get(list1, idx));
         }
         return res;
     }
+
 
     @SafeVarargs
     public static <T extends Comparable<T>> T min(T... list) {
@@ -390,6 +400,26 @@ public class CollUtils {
     @SafeVarargs
     public static <T> Set<T> ofSet(T... ts) {
         return new HashSet<>(Arrays.asList(ts));
+    }
+
+    /**
+     * 找不到则返回最小最接近的首个索引，如果abs后大于list.size()则因为所有元素均大于查找值
+     */
+    public static <T extends Comparable<T>> int biSearch(List<T> list, T val) {
+        int low = 0;
+        int high = list.size() - 1;
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            T midVal = list.get(mid);
+            int cmp = midVal.compareTo(val);
+            if (cmp < 0)
+                low = mid + 1;
+            else if (cmp > 0)
+                high = mid - 1;
+            else
+                return mid;
+        }
+        return -(list.size() - low +1);
     }
 
 
