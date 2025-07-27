@@ -2,9 +2,11 @@ package com.chen.jatool.common.utils;
 
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.text.finder.StrFinder;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.json.JSONObject;
 
+import java.sql.SQLOutput;
 import java.util.List;
 import java.util.Map;
 
@@ -102,6 +104,17 @@ public class StringUtil {
             }
         }
         return sb.toString();
+    }
+
+
+    public static int indexOf(String str, String findStr, int start, int end, boolean ignoreCase) {
+        return new StrFinder(findStr, ignoreCase).setEndIndex(end).setText(str).start(start);
+    }
+    public static int indexOf(String str, String findStr, int start, int end) {
+        return indexOf(str, findStr, start, end, false);
+    }
+    public static int indexOf(String str, String findStr, int start, boolean ignoreCase) {
+        return indexOf(str, findStr, start, str.length(), false);
     }
 
     /**
