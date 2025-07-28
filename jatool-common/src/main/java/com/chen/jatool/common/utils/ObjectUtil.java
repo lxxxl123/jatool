@@ -1,15 +1,22 @@
 package com.chen.jatool.common.utils;
 
+import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
+import com.chen.jatool.common.utils.support.CombineTool;
 import com.chen.jatool.common.utils.support.Numbers;
 import com.chen.jatool.common.utils.support.bean.BeanAccessor;
+import com.chen.jatool.common.utils.support.bean.ObjectAccessor;
+import com.chen.jatool.common.utils.support.lambda.Func1;
+import com.chen.jatool.common.utils.support.lambda.LambdaUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 /**
  * 对象工具类
@@ -95,13 +102,43 @@ public class ObjectUtil {
         }
     }
 
+
+    public static Object get(Object obj, List<String> field) {
+        if (obj == null) {
+            return null;
+        }
+        for (String f : field) {
+            Object res = obj = get(obj, f);
+            if (obj != null) {
+                return res;
+            }
+        }
+        return null;
+    }
+
     public static String getStr(Object obj, String field) {
+        return getStr(obj, field, null);
+    }
+
+    public static String getStr(Object obj, String field, String orElse) {
+        return Convert.toStr(get(obj, field), orElse);
+    }
+    public static String getStr(Object obj, List<String> field) {
         return Convert.toStr(get(obj, field));
     }
 
     public static Integer getInt(Object obj, String field) {
+        return getInt(obj, field, null);
+    }
+
+    public static Integer getInt(Object obj, String field, Integer orElse) {
+        return Convert.toInt(get(obj, field), orElse);
+    }
+    public static Integer getInt(Object obj, List<String> field) {
         return Convert.toInt(get(obj, field));
     }
+
+
 
     public static void set(Object obj, String field, Object val) {
         if (obj == null) {
@@ -113,6 +150,60 @@ public class ObjectUtil {
             new BeanAccessor(obj).set(field, val);
         }
     }
+
+
+
+    public static <T> T compute(Object obj, String fieldName, Predicate<Object> doIf, Func1<Object, T> setVal) {
+        Object val = get(obj, fieldName);
+        if (doIf == null || doIf.test(val)) {
+            T res = setVal.apply(val);
+            set(obj, fieldName, res);
+            return res;
+        }
+        return null;
+    }
+
+    public static <T, F> T compute(Object obj, Func1<F, Object> field, Func1<Object, T> setVal) {
+        String fieldName = LambdaUtils.getFieldName(field);
+        return compute(obj, fieldName, null, setVal);
+    }
+
+
+
+    public static <T> T compute(Object obj, String fieldName, Func1<Object, T> setVal) {
+        return compute(obj, fieldName, null, setVal);
+    }
+
+    public static <T> T computeIfAbsent(Object obj, String fieldName, Func1<Object, T> setVal) {
+        return compute(obj, fieldName, Objects::isNull, setVal);
+    }
+
+
+    public static <T, F> T computeIfPresent(Object obj, Func1<F, Object> field, Func1<Object, T> setVal) {
+        String fieldName = LambdaUtils.getFieldName(field);
+        return compute(obj, fieldName, Objects::nonNull, setVal);
+    }
+
+
+    public static <T> T computeIfPresent(Object obj, String fieldName, Func1<Object, T> setVal) {
+        return compute(obj, fieldName, Objects::nonNull, setVal);
+    }
+
+    public static <T, F> T computeIfNotBlank(Object obj, Func1<F, Object> field, Func1<Object, T> setVal) {
+        String fieldName = LambdaUtils.getFieldName(field);
+        return compute(obj, fieldName, ObjectUtil::isNotBlank, setVal);
+    }
+
+    public static <T> T computeIfNotBlank(Object obj, String fieldName, Func1<Object, T> setVal) {
+        return compute(obj, fieldName, ObjectUtil::isNotBlank, setVal);
+    }
+
+    public static void setIfAbsent(Object obj, String field, Object val) {
+        if (get(obj, field) == null) {
+            set(obj, field, val);
+        }
+    }
+
 
     public static <R> R merge(R obj1, R obj2) {
         if (obj1 == null) {
@@ -156,7 +247,7 @@ public class ObjectUtil {
         throw new ServiceException(StrUtil.format("not support merge type between {} and {}", obj1.getClass(), obj2.getClass()));
     }
 
-    @SuppressWarnings({"unchecked"})
+    @SafeVarargs
     public static <T> T firstNotNull(T... args) {
         if (args == null) {
             return null;
@@ -167,6 +258,31 @@ public class ObjectUtil {
             }
         }
         return null;
+    }
+
+    /**
+     * 补全空值
+     */
+    public static <L, R> void fillNullField(List<L> target, List<R> source, Function<L, ?> func, Function<R, ?> func2) {
+        if (CollUtil.isEmpty(target) || CollUtil.isEmpty(source)) {
+            return;
+        }
+        CombineTool.of(target, source)
+                .eq(func, func2)
+                .forEach(ObjectUtil::fillNullField);
+    }
+
+    public static <O> void fillNullField(O target, O source) {
+        if (target == null || source == null) {
+            return;
+        }
+        ObjectAccessor sourceAcc = ObjectAccessor.of(source);
+        ObjectAccessor targetAcc = ObjectAccessor.of(target);
+        targetAcc.keys().forEach(key -> {
+            if (targetAcc.get(key) == null) {
+                targetAcc.set(key, sourceAcc.get(key));
+            }
+        });
     }
 
     public static void main(String[] args) throws Exception {
