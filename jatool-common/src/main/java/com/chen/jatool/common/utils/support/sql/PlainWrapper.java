@@ -72,6 +72,46 @@ public class PlainWrapper extends QueryWrapper<Object> {
         return this;
     }
 
+    private static String wrapStr(Object val){
+        if (ObjectUtil.isBlank(val)) {
+            return "''";
+        }
+        if (val instanceof Number) {
+            return val.toString();
+        }
+        return "N'" + val + "'";
+    }
+
+    public PlainWrapper putEnum(String key, Map<?, ?> map) {
+        return putEnum(key, map, null);
+    }
+    public PlainWrapper putEnum(String key, Map<?, ?> map, String defaultVal) {
+        if (map.isEmpty()) {
+            return put(key, "''");
+        }
+
+        defaultVal = StrUtil.firstNonBlank(defaultVal, (String) map.get(Short.MIN_VALUE));
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("case ").append(key);
+        map.forEach((key1, value) -> {
+            sb.append(" when ").append(wrapStr(key1)).append(" then ").append(wrapStr(value));
+        });
+        if (StrUtil.isNotBlank(defaultVal)) {
+            sb.append(" else ").append(wrapStr(defaultVal));
+        }
+        sb.append(" end ");
+        return put(key, sb.toString());
+    }
+
+    public PlainWrapper putAll(Map<String, Object> map) {
+        if (entity == null) {
+            entity = new JSONObject();
+        }
+        entity.putAll(map);
+        return this;
+    }
+
     public PlainWrapper putIfAbsent(String key, Object val) {
         if (entity == null) { entity = new JSONObject(); }
         entity.putIfAbsent(key, val);
@@ -85,8 +125,10 @@ public class PlainWrapper extends QueryWrapper<Object> {
         if (o instanceof Map) {
             return of((Map<String, Object>) o);
         }
+
         throw new ServiceException("PlainWrapper.of() 参数类型不支持 {}", o);
     }
+
 
 
 
@@ -205,7 +247,9 @@ public class PlainWrapper extends QueryWrapper<Object> {
 
         @Override
         public String toString() {
-
+            if (str instanceof Boolean) {
+                return Convert.toInt(str) + "";
+            }
             String val = Convert.toStr(str, "");
             if (strict) {
                 validateVal(val);
@@ -264,6 +308,9 @@ public class PlainWrapper extends QueryWrapper<Object> {
     public PlainWrapper le(String column, Object val) {
         addSql("{} <= {}", column, new StrValWrapper(val));
         return this;
+    }
+    public <T> PlainWrapper le(Func1<T, Object> func0, Object val) {
+        return le(LambdaUtils.getFieldName(func0), val);
     }
 
     @Override
@@ -341,6 +388,10 @@ public class PlainWrapper extends QueryWrapper<Object> {
         }
         return this;
     }
+    public <T> PlainWrapper tryLikeRight(Func1<T, Object> func0, Object val) {
+        return tryLikeRight(LambdaUtils.getFieldName(func0), val);
+    }
+
 
     public PlainWrapper notLikeRight(String column, Object val) {
         addSql("{} not like {}", column, new StrValWrapper(val).setSuffix("%"));
