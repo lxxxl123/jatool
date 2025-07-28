@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -34,6 +35,12 @@ public class BatchExecutor<T> {
      * 常用于插入事务
      */
     private boolean useTrans = false;
+
+    /**
+     * 开启重试
+     */
+    private boolean useRetry = false;
+
     private int retry = 3;
 
     private int retryDiv = 5;
@@ -65,6 +72,12 @@ public class BatchExecutor<T> {
     }
 
 
+    public BatchExecutor<T> doRetry() {
+        this.useRetry = true;
+        return this;
+    }
+
+
     /**
      * 若外层有事务,出错会全部回滚
      * 若cacheError，回滚取决于外层事务最终是否出错，否则回滚部分
@@ -75,6 +88,7 @@ public class BatchExecutor<T> {
         trans.propagate(TransactionDefinition.PROPAGATION_NESTED);
         return this;
     }
+
 
     /**
      * 若外层有事务,出错只会回滚错误部分
@@ -91,15 +105,23 @@ public class BatchExecutor<T> {
         return this;
     }
 
-    private Consumer<BatchExecuteException> doWhenError;
+    private Consumer<BatchExecuteException> doCatchErr;
+    private BiConsumer<List<List<T>>, List<Exception>> doCatchList;
 
-    public BatchExecutor<T> catchError(Consumer<BatchExecuteException> consumer) {
-        doWhenError = consumer;
+    public BatchExecutor<T> catchException(Consumer<BatchExecuteException> consumer) {
+        doCatchErr = consumer;
         return this;
     }
 
-    private final List<Object> errorList = new CopyOnWriteArrayList<>();
-    private final List<String> errMsg = new CopyOnWriteArrayList<>();
+    public BatchExecutor<T> catchList(BiConsumer<List<List<T>>, List<Exception>> consumer) {
+        doCatchList = consumer;
+        return this;
+    }
+
+
+
+    private final List<List<T>> errorList = new CopyOnWriteArrayList<>();
+    private final List<Exception> errEx = new CopyOnWriteArrayList<>();
 
 
     public void run(Consumer<List<T>> consumer) {
@@ -125,14 +147,7 @@ public class BatchExecutor<T> {
             return func.apply(o);
         }
         R res = batchExecute(o, func, batchSize);
-        if (!errorList.isEmpty()) {
-            BatchExecuteException ex = new BatchExecuteException(errorList, errMsg);
-            if (doWhenError != null) {
-                doWhenError.accept(ex);
-            } else {
-                throw ex;
-            }
-        }
+        tryThrow();
         return res;
     }
 
@@ -142,15 +157,23 @@ public class BatchExecutor<T> {
             return func.apply(o);
         }
         R res = batchExecuteAsync(o, func, batchSize);
-        if (!errorList.isEmpty()) {
-            BatchExecuteException ex = new BatchExecuteException(errorList, errMsg);
-            if (doWhenError != null) {
-                doWhenError.accept(ex);
-            } else {
-                throw ex;
-            }
-        }
+        tryThrow();
         return res;
+    }
+
+    private void tryThrow(){
+        if (errorList.isEmpty()) {
+            return;
+        }
+
+        BatchExecuteException ex = new BatchExecuteException((List) errorList, errEx);
+        if (doCatchErr != null) {
+            doCatchErr.accept(ex);
+        } else if (doCatchList != null) {
+            doCatchList.accept(errorList, errEx);
+        } else {
+            throw ex;
+        }
     }
 
 
@@ -211,18 +234,13 @@ public class BatchExecutor<T> {
                 res = func.apply(part);
             }
         } catch (Exception e) {
-            if (!useTrans) {
+            if (!useRetry || !useTrans) {
                 throw e;
             }
             /*不再重试*/
-            if (retry == 0 || part.size() == 1) {
-                errorList.addAll(part);
-                //避免字数太大
-                errMsg.add(e.getLocalizedMessage());
-                if (errorCount.incrementAndGet() >= maxErrorCount) {
-                    // 中断其他任务
-                    throw (BatchExecuteException) new BatchExecuteException(errorList, errMsg).initCause(e);
-                }
+            if (errorCount.incrementAndGet() >= maxErrorCount || retry == 0 || part.size() == 1) {
+                errorList.add(part);
+                errEx.add(e);
                 log.error("", e);
                 return null;
             }
