@@ -666,6 +666,18 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable, Serializable
     public boolean eq(Object obj) {
         return ObjectUtil.equal(DateTimes.of(obj).getEpochMillis(), getEpochMillis());
     }
+    public boolean lt(Object obj) {
+        return before(DateTimes.of(obj));
+    }
+    public boolean gt(Object obj) {
+        return after(DateTimes.of(obj));
+    }
+    public boolean le(Object obj) {
+        return beforeOrEquals(DateTimes.of(obj));
+    }
+    public boolean ge(Object obj) {
+        return afterOrEquals(DateTimes.of(obj));
+    }
 
     public boolean after(DateTimes dateTimes) {
         return compareTo(dateTimes) > 0;
