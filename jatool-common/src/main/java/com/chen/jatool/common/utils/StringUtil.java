@@ -35,20 +35,30 @@ public class StringUtil {
         return toStringOrElse(obj, "");
     }
 
-    public static int endIndexOf(String cs, String find) {
-        return endIndexOf(cs, find, 0);
+
+    public static int indexOf(String str, String findStr, int start, int end, boolean ignoreCase) {
+        return new StrFinder(findStr, ignoreCase).setEndIndex(end).setText(str).start(start);
+    }
+    public static int indexOf(String str, String findStr, int start, int end) {
+        return indexOf(str, findStr, start, end, false);
+    }
+    public static int indexOf(String str, String findStr, int start) {
+        return indexOf(str, findStr, start, -1, false);
     }
 
-    public static int endIndexOf(String cs, String find, int start) {
-        if (cs == null) {
-            return -1;
-        }
-        int i = cs.indexOf(find, start);
-        if (i > -1) {
-            return i + find.length();
-        }
-        return i;
+    public static int endIndexOf(String str, String findStr, int start, int end, boolean ignoreCase) {
+        return new StrFinder(findStr, ignoreCase).setEndIndex(end).setText(str).start(start);
     }
+
+    public static int endIndexOf(String str, String findStr, int start, int end) {
+        return endIndexOf(str, findStr, start, end, false);
+    }
+
+    public static int endIndexOf(String str, String findStr, int start) {
+        return endIndexOf(str, findStr, start, -1, false);
+    }
+
+
 
     public static int endIndexOfBatch(String cs, List<? extends CharSequence> list, int start) {
         return endIndexOfBatch(cs, list, start, -1);
@@ -66,6 +76,7 @@ public class StringUtil {
     public static int indexOfBatch(String cs, List<? extends CharSequence> list, int start) {
         return indexOfBatch(cs, list, start, -1);
     }
+
     public static int indexOfBatch(String cs, List<? extends CharSequence> list, int start , int orElseIdx) {
         if (cs == null) {
             return orElseIdx;
@@ -107,15 +118,6 @@ public class StringUtil {
     }
 
 
-    public static int indexOf(String str, String findStr, int start, int end, boolean ignoreCase) {
-        return new StrFinder(findStr, ignoreCase).setEndIndex(end).setText(str).start(start);
-    }
-    public static int indexOf(String str, String findStr, int start, int end) {
-        return indexOf(str, findStr, start, end, false);
-    }
-    public static int indexOf(String str, String findStr, int start, boolean ignoreCase) {
-        return indexOf(str, findStr, start, str.length(), false);
-    }
 
     /**
      * 该方法较慢，原理未知
