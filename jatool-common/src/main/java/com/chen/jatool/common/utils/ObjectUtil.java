@@ -9,13 +9,13 @@ import com.chen.jatool.common.utils.support.Numbers;
 import com.chen.jatool.common.utils.support.bean.BeanAccessor;
 import com.chen.jatool.common.utils.support.bean.ObjectAccessor;
 import com.chen.jatool.common.utils.support.lambda.Func1;
+import com.chen.jatool.common.utils.support.lambda.Func2;
 import com.chen.jatool.common.utils.support.lambda.LambdaUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.Nullable;
 import org.springframework.util.ObjectUtils;
 
 import java.util.*;
-import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -204,6 +204,11 @@ public class ObjectUtil {
         }
     }
 
+    public static void setIfBlank(Object obj, String field, Object val) {
+        if (isBlank(get(obj, field))) {
+            set(obj, field, val);
+        }
+    }
 
     public static <R> R merge(R obj1, R obj2) {
         if (obj1 == null) {
@@ -214,25 +219,25 @@ public class ObjectUtil {
         }
         if (obj1 instanceof Collection && obj2 instanceof Collection) {
             // 性能损失小点
-            Collection<?> l1 = CollUtils.tryToColl(obj1);
-            Collection<?> l2 = CollUtils.tryToColl(obj2);
+            Collection<Object> l1 = (Collection) CollUtils.tryToModifiableColl(obj1);
+            Collection<?> l2 = (Collection<?>) obj2;
             try {
-                l1.addAll((Collection) l2);
+                l1.addAll(l2);
             } catch (UnsupportedOperationException e) {
                 log.warn("merge warning ", e);
                 if (l1 instanceof List) {
-                    l1 = CollUtils.toList(l1);
-                    l1.addAll((Collection) l2);
+                    l1 = new ArrayList<>(l1);
+                    l1.addAll(l2);
                     return (R) l1;
                 } else if (l1 instanceof Set) {
-                    l1 = CollUtils.toSet(l1);
-                    l1.addAll((Collection) l2);
-                    return (R) new HashSet<>(l1);
+                    l1 = new HashSet<>(l1);
+                    l1.addAll(l2);
+                    return (R) l1;
                 } else {
                     throw new ServiceException("no support");
                 }
             }
-            return (R) Convert.convert(obj1.getClass(), l1);
+            return (R) l1;
         }
 
         if (obj1 instanceof Map && obj2 instanceof Map) {
@@ -259,40 +264,31 @@ public class ObjectUtil {
         }
         return null;
     }
-
-    /**
-     * 补全空值
-     */
-    public static <L, R> void fillNullField(List<L> target, List<R> source, Function<L, ?> func, Function<R, ?> func2) {
-        if (CollUtil.isEmpty(target) || CollUtil.isEmpty(source)) {
-            return;
-        }
-        CombineTool.of(target, source)
-                .eq(func, func2)
-                .forEach(ObjectUtil::fillNullField);
+    public static <O> void fillNullField(O target, O source) {
+        fillFieldIf(target, source, (key, val) -> val == null);
     }
 
-    public static <O> void fillNullField(O target, O source) {
+    public static <O> void fillBlankField(O target, O source) {
+        fillFieldIf(target, source, (key, val) -> isBlank(val));
+    }
+    public static <O> void fillFieldWithKeys(O target, O source, Collection<String> keys) {
+        fillFieldIf(target, source, (key, val) -> keys.contains(key));
+    }
+
+    public static <O> void fillFieldIf(O target, O source, Func2<String, Object, Boolean> setIf) {
         if (target == null || source == null) {
             return;
         }
         ObjectAccessor sourceAcc = ObjectAccessor.of(source);
         ObjectAccessor targetAcc = ObjectAccessor.of(target);
         targetAcc.keys().forEach(key -> {
-            if (targetAcc.get(key) == null) {
+            if (setIf == null || setIf.apply(key, targetAcc.get(key))) {
                 targetAcc.set(key, sourceAcc.get(key));
             }
         });
     }
 
     public static void main(String[] args) throws Exception {
-//        long start = System.currentTimeMillis();
-//        // 1亿 3秒
-//        for (int i = 0; i < 100000000; i++) {
-////            Object invoke = BeanUtils.getPropertyDescriptor(f.getClass(), "checkpoints").getReadMethod().invoke(f);
-//            ObjectUtil.get(f, "checkpoints");
-//        }
-//        System.out.println(System.currentTimeMillis() - start);
     }
 
 }

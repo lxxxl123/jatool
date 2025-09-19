@@ -6,11 +6,11 @@ import cn.hutool.core.collection.ListUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
+import com.chen.jatool.common.utils.ObjectUtil;
 import com.chen.jatool.common.utils.support.lambda.Func1;
 import com.chen.jatool.common.utils.support.lambda.LambdaUtils;
 import com.chen.jatool.common.utils.support.string.MessageBuilder;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.poi.ss.formula.functions.T;
 import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
@@ -18,6 +18,7 @@ import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -72,15 +73,7 @@ public class CollUtils {
     }
 
 
-    public static <T> Set<T> toSet(Collection<T> coll) {
-        if (coll == null) {
-            return Collections.emptySet();
-        }
-        if (coll instanceof Set) {
-            return (Set<T>) coll;
-        }
-        return new HashSet<>(coll);
-    }
+
 
     public static <T> Stream<T> iter2Stream(Iterable<T> obj) {
         if (obj == null) {
@@ -113,10 +106,35 @@ public class CollUtils {
         }
     }
 
+    public static <T> Stream<T> toStream(Collection<T> list) {
+        if (list == null) {
+            return Stream.of();
+        }
+        return list.stream();
+    }
+
+    public static Stream<?> toFlatStream(Object... list) {
+        return Arrays.stream(list).flatMap(CollUtils::toStream);
+    }
+
     @SafeVarargs
-    public static <T> Stream<T> toStream(Collection<T>... list) {
+    public static <T> Stream<T> toFlatStream(Collection<T>... list) {
         return Arrays.stream(list).filter(Objects::nonNull)
-                .flatMap(Collection::stream);
+                .flatMap(CollUtils::toStream);
+    }
+
+
+    public static  List<?> toFlatList(Object...list) {
+        return toFlatStream(list).collect(Collectors.toList());
+    }
+
+    @SafeVarargs
+    public static <T> List<T> toFlatList(Collection<T>... list) {
+        return toFlatStream(list).collect(Collectors.toList());
+    }
+
+    public static  List<?> toFlatStrList(Object...list) {
+        return toFlatStream(list).map(StrUtil::toStringOrNull).collect(Collectors.toList());
     }
 
     @Deprecated
@@ -127,21 +145,37 @@ public class CollUtils {
     public static List<?> toList(Object obj) {
         return toStream(obj).collect(Collectors.toList());
     }
+    public static Set<?> toSet(Object coll) {
+        return toStream(coll).collect(Collectors.toSet());
+    }
 
-    public static List<?> toNotNullList(Object obj) {
+    public static List<?> toNnList(Object obj) {
         return toStream(obj).filter(Objects::nonNull).collect(Collectors.toList());
     }
 
+    private static Set<Class<?>> modifiableClasses
+            = ofSet(ArrayList.class, LinkedList.class, CopyOnWriteArrayList.class
+            , ArrayDeque.class, Vector.class, PriorityQueue.class
+            , HashSet.class, LinkedHashSet.class , TreeSet.class
+            , Stack.class
+    );
     /**
      * 尽可能不改变原来的元素，减少性能损耗
      */
-    public static Collection<?> tryToColl(Object o){
+    public static Collection<?> tryToModifiableColl(Object o) {
         if (o == null) {
             return new ArrayList<>();
         }
-        if (o instanceof Collection) {
+        Class<?> clazz = o.getClass();
+        if (modifiableClasses.contains(clazz) ) {
             return (Collection<?>) o;
         }
+        for (Class<?> modifiableClass : modifiableClasses) {
+            if (modifiableClass.isAssignableFrom(clazz)) {
+                return (Collection<?>) o;
+            }
+        }
+
         if (o instanceof Iterable) {
             return ListUtil.toList((Iterable<?>) o);
         }
@@ -156,10 +190,10 @@ public class CollUtils {
         return toStrList(obj);
     }
 
-    public static List<String> toNnStrList(Object obj) {
-        return toStream(obj).map(StrUtil::toStringOrNull).collect(Collectors.toList());
-    }
 
+    /**
+     * 返回非空字符串列表
+     */
     public static List<String> toStrList(Object obj) {
         return toStream(obj).map(StrUtil::toStringOrNull).filter(StringUtils::isNotBlank).collect(Collectors.toList());
     }
@@ -217,6 +251,19 @@ public class CollUtils {
         return partitionedList;
     }
 
+    public static <T> Set<T> subtractSet(Collection<T> source, Object targetList) {
+        if (CollUtil.isEmpty(source)) {
+            return Collections.emptySet();
+        }
+        Set<T> set = new HashSet<>(source);
+        List<?> list = toList(targetList);
+        for (Object o : list) {
+            set.remove(o);
+        }
+        return set;
+
+    }
+
     public static <T> BigDecimal sum(List<T> list, String key) {
         BigDecimal sum = BigDecimal.ZERO;
         for (T t : list) {
@@ -248,6 +295,16 @@ public class CollUtils {
                 .max(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .orElse(null);
+    }
+
+    public static <T> void checkNotEmpty(Stream<T> list, Func1<List<T>, String> msg) {
+        checkNotEmpty(list.collect(Collectors.toList()), msg);
+    }
+
+    public static <T> void checkNotEmpty(List<T> list, Func1<List<T>, String> msg) {
+        if (!CollUtil.isEmpty(list)) {
+            throw new ServiceException(msg.apply(list));
+        }
     }
 
 
@@ -402,7 +459,15 @@ public class CollUtils {
         return new HashSet<>(Arrays.asList(ts));
     }
 
+
+
+    @SafeVarargs
+    public static <T> Set<T> ofUnmodifiableSet(T... ts) {
+        return Collections.unmodifiableSet(ofSet(ts));
+    }
+
     /**
+     * 二分法查找，原数组必须有序
      * 找不到则返回最小最接近的首个索引，如果abs后大于list.size()则因为所有元素均大于查找值
      */
     public static <T extends Comparable<T>> int biSearch(List<T> list, T val) {
