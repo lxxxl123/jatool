@@ -565,6 +565,29 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable, Serializable
     public DateTimes setMonthLiteral(int value) {
         return setField(DateField.MONTH, value - 1);
     }
+
+
+    /**
+     * 以周日开始，周六结束
+     */
+    public DateTimes setDayOfWeek(int value) {
+        return setField(DateField.DAY_OF_WEEK, value);
+    }
+
+    /**
+     * 以周一开始，周日结束
+     */
+    public DateTimes setDayOfWeekLt(int value) {
+        value = value % 7;
+        if (getDayOfWeekLt() == 7) {
+            return addDays(-1).setDayOfWeekLt(value);
+        }
+        if (value == 0) {
+            return setDayOfWeekLt(6).addDays(1);
+        }
+        return setField(DateField.DAY_OF_WEEK, value + 1);
+    }
+
     public DateTimes setDayOfMonth(int value) {
         return setField(DateField.DAY_OF_MONTH, value);
     }
@@ -609,11 +632,15 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable, Serializable
     public int getMonthLiteral() {
         return getField(DateField.MONTH) + 1;
     }
+
+    public int getDayOfWeek(){
+        return getField(DateField.DAY_OF_WEEK);
+    }
+
     /**
      * 1 表示周一，7表示周日； Calendar中 1代表周日，2表示周一
-     *
      */
-    public int getDayOfWeek() {
+    public int getDayOfWeekLt() {
         return (getField(DateField.DAY_OF_WEEK) + 5) % 7 + 1;
     }
 
@@ -850,7 +877,7 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable, Serializable
     public boolean isHoliday() {
         Map<Integer, BitSet> map = getHolidayMap();
         BitSet bitSet;
-        return map.isEmpty() ? getDayOfWeek() > 5 : ((bitSet = map.get(getYear())) != null && bitSet.get(getDayOfYear()));
+        return map.isEmpty() ? getDayOfWeekLt() > 5 : ((bitSet = map.get(getYear())) != null && bitSet.get(getDayOfYear()));
     }
 
     public boolean isWorkDay() {
@@ -879,6 +906,13 @@ public class DateTimes implements Comparable<DateTimes>, Cloneable, Serializable
             }
         }
         return this;
+    }
+
+    private static final long ZERO_DATE = 0L;
+    public static boolean isSameDate(Object left, Object right) {
+        DateTimes l = DateTimes.ofEx(left, ZERO_DATE);
+        DateTimes r = DateTimes.ofEx(right, ZERO_DATE);
+        return l.getYear() == r.getYear() && l.getMonth() == r.getMonth() && l.getDayOfMonth() == r.getDayOfMonth();
     }
 
 
