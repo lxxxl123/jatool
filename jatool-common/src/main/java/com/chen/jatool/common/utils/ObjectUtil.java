@@ -1,6 +1,5 @@
 package com.chen.jatool.common.utils;
 
-import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.convert.Convert;
 import cn.hutool.core.util.StrUtil;
 import com.chen.jatool.common.exception.ServiceException;
@@ -72,6 +71,30 @@ public class ObjectUtil {
         }
         return obj;
     }
+
+    public static <T> T tryTrimObj(T obj) {
+        return tryTrimIf(obj, s -> s.startsWith(" ") || s.endsWith(" "));
+    }
+
+    public static <T> T tryTrimEndObj(T obj) {
+        return tryTrimIf(obj, s -> s.endsWith(" "));
+    }
+
+    public static <T> T tryTrimIf(T obj, Predicate<String> pred) {
+        ObjectAccessor access = ObjectAccessor.of(obj);
+        for (String key : access.keys()) {
+            Object val = access.get(key);
+            if (val instanceof String) {
+                String str = (String) val;
+                if(pred.test(str)){
+                    access.set(key, StrUtil.trim(str));
+                }
+            }
+        }
+        return obj;
+    }
+
+
 
     public static String removeSubAndPre(Object ori, String subAndPre) {
         if (ori == null) {
@@ -264,6 +287,20 @@ public class ObjectUtil {
         }
         return null;
     }
+
+    @SafeVarargs
+    public static <T> T firstNotEmpty(T... args) {
+        if (args == null) {
+            return null;
+        }
+        for (T t : args) {
+            if (!isEmpty(t)) {
+                return t;
+            }
+        }
+        return null;
+    }
+
     public static <O> void fillNullField(O target, O source) {
         fillFieldIf(target, source, (key, val) -> val == null);
     }

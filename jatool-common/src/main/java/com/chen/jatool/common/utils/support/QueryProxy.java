@@ -1,4 +1,4 @@
-package com.chen.jatool.common.utils.support;
+package com.haday.qms.core.tool.support;
 
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
@@ -19,16 +19,19 @@ import java.util.function.Consumer;
  */
 public class QueryProxy {
 
-    private JdbcTool jdbcTool;
+    protected JdbcTool jdbcTool;
 
-    private QueryWrapper wrapper;
+    protected QueryWrapper wrapper;
 
-    private PageVo<?> inPage;
+    protected PageVo<?> inPage;
 
-    private Consumer<List<?>> afterGet;
+    protected Consumer<List<?>> afterGet;
 
-    private QueryProxy(){
+    protected Consumer<PlainWrapper> plainWrapperConsumer;
+
+    protected QueryProxy(){
     }
+
 
     public static <F> QueryProxy ofFun(Func1<F,Object> func1) {
         QueryProxy QueryProxy = new QueryProxy();
@@ -114,7 +117,7 @@ public class QueryProxy {
         if (wrapper == null) {
             wrapper = PlainWrapper.of();
         }
-        if (wrapper instanceof PlainWrapper) {
+        if (wrapper instanceof PlainWrapper && plainWrapperConsumer != null) {
             plainWrapperConsumer.accept((PlainWrapper) wrapper);
         }
     }
@@ -142,8 +145,6 @@ public class QueryProxy {
         return this;
     }
 
-
-    private Consumer<PlainWrapper> plainWrapperConsumer = (wrapper)-> {};
 
     public QueryProxy computePlainWrapper(Consumer<PlainWrapper> consumer) {
         plainWrapperConsumer = consumer;
