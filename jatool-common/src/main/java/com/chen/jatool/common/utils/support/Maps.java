@@ -59,7 +59,18 @@ public class Maps {
     public <K,V> Map<K,V> getMap(Class<K> kClass , Class<V> vClass){
         return (Map<K, V>) map;
     }
+    public <K,V> Map<K,V> convertMap(Class<K> kClass , Class<V> vClass){
+        Map<K, V> res = new HashMap<>();
+        map.forEach((k,v)-> res.put(Convert.convert(kClass, k), Convert.convert(vClass, v)));
+        return res;
+    }
+    public Map<String,String> getStrMap(){
+        return getMap(String.class, String.class);
+    }
 
+    public Map<String, Integer> getStrIntMap(){
+        return getMap(String.class, Integer.class);
+    }
 
     public Map<String,Object> getStrObjMap(){
         return getMap(String.class, Object.class);
@@ -72,4 +83,5 @@ public class Maps {
     public Map<Integer,Integer> getIntMap(){
         return getMap(Integer.class, Integer.class);
     }
+
 }

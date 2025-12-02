@@ -12,6 +12,10 @@ import java.util.Map;
 
 public class StringUtil {
 
+    public static boolean isBlank(CharSequence cs) {
+        return StrUtil.isBlank(cs);
+    }
+
     public static boolean isChinese(char ch) {
         //获取此字符的UniCodeBlock
         Character.UnicodeBlock ub = Character.UnicodeBlock.of(ch);
@@ -91,6 +95,22 @@ public class StringUtil {
             }
         }
         return start;
+    }
+
+    public static Integer getAsciiLength(String str) {
+        if (isBlank(str)) {
+            return 0;
+        }
+        int length = 0;
+        for (int i = 0; i < str.length(); i++) {
+            char c = str.charAt(i);
+            if (isChinese(c)) {
+                length += 2;
+            } else {
+                length += 1;
+            }
+        }
+        return length;
     }
 
 
