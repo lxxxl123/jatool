@@ -2,9 +2,10 @@ package com.chen.jatool.common.utils;
 
 
 import com.chen.jatool.common.utils.support.InMemoryCache;
-import com.haday.qms.core.tool.support.InMemoryCache;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -40,6 +41,34 @@ public class CacheUtil {
     public static <T> T computeIfAbsent(String key, Function<String, T> func, long timeout) {
         timeout = Math.min(timeout, MAX_CACHE_TIMEOUT);
         return (T) IN_MEMORY_CACHE.computeIfAbsent(key, (Function<String, Object>) func, timeout);
+    }
+
+    public static <T,K> List<T> computeList(Function<List<K>, List<T>> func, List<K> keys, Function<T, K> getId, Function<K, String> id2key, long timeout) {
+        timeout = Math.min(timeout, MAX_CACHE_TIMEOUT);
+
+        List<K> notCacheIds = new ArrayList<>();
+        List<T> results = new ArrayList<>();
+        for (K id : keys) {
+            T t = (T) get(id2key.apply(id));
+            if (t == null) {
+                notCacheIds.add(id);
+            } else {
+                results.add(t);
+            }
+
+        }
+        if (!notCacheIds.isEmpty()) {
+            List<T> temp = func.apply(notCacheIds);
+            if (temp != null) {
+                for (T t : temp) {
+                    K id = getId.apply(t);
+                    String key = id2key.apply(id);
+                    set(key, t, timeout);
+                }
+                results.addAll(temp);
+            }
+        }
+        return results;
     }
 
     public static void remove(String key) {
