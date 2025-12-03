@@ -1,6 +1,8 @@
 package com.chen.jatool.common.utils.support.bean;
 
 import com.chen.jatool.common.exception.ServiceException;
+import com.chen.jatool.common.utils.support.bean.BeanAccessor;
+import com.chen.jatool.common.utils.support.bean.JsonAccessor;
 import com.chen.jatool.common.utils.support.lambda.Func1;
 
 import java.util.List;
@@ -8,17 +10,14 @@ import java.util.Map;
 
 /**
  * @author chewh3
- * 未完善
  */
-@Deprecated
 public abstract class ObjectAccessor {
 
 
     public static ObjectAccessor of(Object target) {
         ObjectAccessor res ;
         if (target instanceof Map) {
-            throw new ServiceException("暂不支持");
-//            res = new JsonAccessor(target,false);
+            res = new JsonAccessor(target);
         } else {
             res = new BeanAccessor(target);
         }

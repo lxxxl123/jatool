@@ -5,6 +5,7 @@ import com.chen.jatool.common.utils.BeanUtils;
 import org.springframework.util.ReflectionUtils;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
 
 /**
@@ -32,8 +33,12 @@ public class BeanAccessor extends ObjectAccessor {
             do {
                 Field[] fields = cur.getDeclaredFields();
                 for (int i = 0; i < fields.length; ++i) {
+                    Field field = fields[i];
+                    if (Modifier.isStatic(field.getModifiers())) {
+                        continue;
+                    }
                     // 同属性名的情况下，避免父类覆盖子类的属性
-                    fieldMap.putIfAbsent(fields[i].getName(), fields[i]);
+                    fieldMap.putIfAbsent(field.getName(), fields[i]);
                 }
                 cur = cur.getSuperclass();
             } while (cur != null && cur != Object.class);
